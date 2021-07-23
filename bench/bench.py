@@ -6,13 +6,13 @@ from npreadtext import _loadtxt
 a = np.random.rand(100_000, 5)
 np.savetxt("test.csv", a, delimiter=",")
 
-print("loadtxt:")
-get_ipython().run_line_magic('timeit', 'b = np.loadtxt("test.csv", delimiter=",")')
-print("read_csv")
-get_ipython().run_line_magic('timeit', 'c = pd.read_csv("test.csv", delimiter=",")')
-print("read_csv w/ honest floats")
-get_ipython().run_line_magic(
-    'timeit', 'c = pd.read_csv("test.csv", delimiter=",", float_precision="round_trip")'
-)
-print("_loadtxt")
-get_ipython().run_line_magic('timeit', 'd = _loadtxt("test.csv", delimiter=",")')
+cmds_to_bench = [
+    'b = np.loadtxt("test.csv", delimiter=",")',
+    'c = pd.read_csv("test.csv", delimiter=",")',
+    'd = pd.read_csv("test.csv", delimiter=",", float_precision="round_trip")',
+    'e = _loadtxt("test.csv", delimiter=",")',
+]
+
+for cmd in cmds_to_bench:
+    print(f">>> {cmd}")
+    get_ipython().run_line_magic('timeit', cmd)
