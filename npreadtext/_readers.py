@@ -1,7 +1,9 @@
 
 import os
 import codecs
-import types
+from collections.abc import Iterable
+import functools
+import io
 from pathlib import Path
 import operator
 import numpy as np
@@ -24,7 +26,7 @@ def read(file, *, delimiter=',', comment='#', quote='"',
          decimal='.', sci='E', imaginary_unit='j',
          usecols=None, skiprows=0,
          max_rows=None, converters=None, ndmin=None, unpack=False,
-         dtype=None, encoding=None):
+         dtype=None, encoding="bytes"):
     r"""
     Read a NumPy array from a text file.
 
@@ -59,6 +61,13 @@ def read(file, *, delimiter=',', comment='#', quote='"',
     max_rows : int, optional
         Maximum number of rows of data to read.  Default is to read the
         entire file.
+    converters : dict, optional
+        A dictionary mapping column number to a function that will parse the
+        column string into the desired value. E.g. if column 0 is a date
+        string: ``converters = {0: datestr2num}``. Converters can also be used
+        to provide a default value for missing data, e.g.
+        ``converters = {3: lambda s: float(s.strip() or 0)}``.
+        Default: None
     ndmin : int, optional
         Minimum dimension of the array returned.
         Allowed values are 0, 1 or 2.  Default is 0.
@@ -70,7 +79,12 @@ def read(file, *, delimiter=',', comment='#', quote='"',
         If not given, the data type is inferred from the values found
         in the file.
     encoding : str, optional
-        Specifies the encoding of the input file.
+        Encoding used to decode the inputfile. The special value 'bytes'
+        (the default) enables backwards-compatible behavior for `converters`,
+        ensuring that inputs to the converter functions are `latin1`-encoded
+        bytes objects. The special value 'bytes' has no additional effect if 
+        ``converters=None``. If encoding is ``'bytes'`` or ``None``, the
+        default system encoding is used.
 
     Returns
     -------
@@ -101,6 +115,12 @@ def read(file, *, delimiter=',', comment='#', quote='"',
     array([(1. , 10, b'alpha'), (2.3, 25, b'beta'), (4.5, 16, b'gamma')],
           dtype=[('f0', '<f8'), ('f1', 'u1'), ('f2', 'S5')])
     """
+    # Handle special 'bytes' keyword for encoding
+    byte_converters = False
+    if encoding == 'bytes':
+        encoding = None
+        byte_converters = True
+
     codec = None
     if encoding is not None:
         # This will raise a LookupError if the encoding is unknown.
@@ -147,6 +167,12 @@ def read(file, *, delimiter=',', comment='#', quote='"',
                 raise TypeError('values of the converters dictionary must '
                                 'be callable, but the value associated with '
                                 f'the key {key!r} is not')
+            if byte_converters:
+                def tobytes_first(x, conv):
+                    if isinstance(x, bytes):
+                        return conv(x)
+                    return conv(x.encode("latin1"))
+                converters[key] = functools.partial(tobytes_first, func)
 
     if ndmin not in [None, 0, 1, 2]:
         raise ValueError(f'ndmin must be None, 0, 1, or 2; got {ndmin}')
