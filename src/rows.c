@@ -51,25 +51,32 @@ size_t compute_row_size(int actual_num_fields,
 }
 
 
-PyObject *call_converter_function(PyObject *func, char32_t *token)
+PyObject *call_converter_function(PyObject *func, char32_t *token, bool byte_converters)
 {
     Py_ssize_t tokenlen = 0;
     while (token[tokenlen]) {
         ++tokenlen;
     }
+ 
+    // Convert token to a Python unicode object
     PyObject *s = PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, token, tokenlen);
     if (s == NULL) {
         // fprintf(stderr, "*** PyUnicode_FromKindAndData failed ***\n");
         return s;
     }
-    PyObject *b = PyObject_CallMethod(s, "encode", NULL);
-    if (b == NULL) {
-        fprintf(stderr, "*** encode failed ***\n");
-        return b;
+
+    // If byte_converters flag is set, encode prior to calling converter
+    if (byte_converters) {
+        s = PyObject_CallMethod(s, "encode", NULL);
+        if (s == NULL) {
+            fprintf(stderr, "*** encode failed ***\n");
+            return s;
+        }
     }
-    PyObject *result = PyObject_CallFunctionObjArgs(func, b, NULL);
+
+    // Apply converter function
+    PyObject *result = PyObject_CallFunctionObjArgs(func, s, NULL);
     Py_DECREF(s);
-    Py_DECREF(b);
     if (result == NULL) {
         // fprintf(stderr, "*** PyObject_CallFunctionObjArgs failed ***\n");
     }
@@ -104,7 +111,7 @@ size_t max_token_len(char32_t **tokens, int num_tokens,
 // WIP...
 size_t max_token_len_with_converters(char32_t **tokens, int num_tokens,
                                      int32_t *usecols, int num_usecols,
-                                     PyObject **conv_funcs)
+                                     bool byte_converters, PyObject **conv_funcs)
 {
     size_t maxlen = 0;
     size_t m;
@@ -119,7 +126,8 @@ size_t max_token_len_with_converters(char32_t **tokens, int num_tokens,
         }
 
         if (conv_funcs && conv_funcs[j]) {
-            PyObject *obj = call_converter_function(conv_funcs[i], tokens[j]);
+            PyObject *obj = call_converter_function(conv_funcs[i], tokens[j],
+                                                    byte_converters);
             if (obj == NULL) {
 //                fprintf(stderr, "CALL FAILED! strlen(tokens[j]) = %u, tokens[j] = %u\n",
 //                                strlen32(tokens[j]), tokens[j][0]);
@@ -338,12 +346,10 @@ void *read_rows(stream *s, int *nrows,
                 // Find the maximum field length in the first line.
                 size_t maxlen;
                 if (converters != Py_None) {
-                    //maxlen = max_token_len_with_converters(result, actual_num_fields,
-                    //                                       usecols, num_usecols,
-                    //                                       conv_funcs);
-                    // XXX WIP--for now, ignore the converters...
-                    maxlen = max_token_len(result, actual_num_fields,
-                                           usecols, num_usecols);
+                    maxlen = max_token_len_with_converters(result, actual_num_fields,
+                                                           usecols, num_usecols,
+                                                           pconfig->byte_converters,
+                                                           conv_funcs);
                 }
                 else {
                     maxlen = max_token_len(result, actual_num_fields,
@@ -394,7 +400,14 @@ void *read_rows(stream *s, int *nrows,
                 // typecode must be 'S' or 'U'.
                 // Find the maximum field length in the current line.
                 if (converters != Py_None) {
-                    // XXX Not handled yet.
+                    maxlen = max_token_len_with_converters(result, actual_num_fields,
+                                                           usecols, num_usecols,
+                                                           pconfig->byte_converters,
+                                                           conv_funcs);
+                }
+                else {
+                    maxlen = max_token_len(result, actual_num_fields,
+                                                  usecols, num_usecols);
                 }
                 size_t maxlen = max_token_len(result, actual_num_fields,
                                               usecols, num_usecols);
@@ -465,7 +478,8 @@ void *read_rows(stream *s, int *nrows,
             read_error->typecode = typecode;
 
             if (conv_funcs && conv_funcs[j]) {
-                converted = call_converter_function(conv_funcs[j], result[k]);
+                converted = call_converter_function(conv_funcs[j], result[k],
+                                                    pconfig->byte_converters);
                 if (converted == NULL) {
                     read_error->error_type = ERROR_CONVERTER_FAILED;
                     break;

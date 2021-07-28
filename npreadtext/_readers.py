@@ -1,7 +1,7 @@
 
 import os
 import codecs
-from collections.abc import Iterable
+import types
 import functools
 import io
 from pathlib import Path
@@ -218,7 +218,8 @@ def read(file, *, delimiter=',', comment='#', quote='"',
                                           converters=converters,
                                           dtype=dtype,
                                           codes=codes, sizes=sizes,
-                                          encoding=encoding)
+                                          encoding=encoding,
+                                          byte_converters=byte_converters)
         else:
             f = np.lib._datasource.open(fname, 'rt', encoding=encoding)
             try:
@@ -232,7 +233,8 @@ def read(file, *, delimiter=',', comment='#', quote='"',
                                                  max_rows=max_rows,
                                                  converters=converters,
                                                  dtype=dtype, codes=codes,
-                                                 sizes=sizes, encoding=enc)
+                                                 sizes=sizes, encoding=enc,
+                                                 byte_converters=byte_converters)
             finally:
                 f.close()
     elif isinstance(file, Path):
@@ -248,7 +250,8 @@ def read(file, *, delimiter=',', comment='#', quote='"',
                                              converters=converters,
                                              dtype=dtype,
                                              codes=codes, sizes=sizes,
-                                             encoding=enc)
+                                             encoding=enc,
+                                             byte_converters=byte_converters)
     elif isinstance(file, types.GeneratorType):
         if dtype is None:
             raise ValueError('dtype must be given when reading from '
@@ -266,7 +269,8 @@ def read(file, *, delimiter=',', comment='#', quote='"',
                                          converters=converters,
                                          dtype=dtype,
                                          codes=codes, sizes=sizes,
-                                         encoding=enc)
+                                         encoding=enc,
+                                         byte_converters=byte_converters)
     else:
         # Assume file is a file object.
         enc = encoding.encode('ascii') if encoding is not None else None
@@ -278,7 +282,8 @@ def read(file, *, delimiter=',', comment='#', quote='"',
                                          max_rows=max_rows,
                                          converters=converters,
                                          dtype=dtype, codes=codes, sizes=sizes,
-                                         encoding=enc)
+                                         encoding=enc,
+                                         byte_converters=byte_converters)
 
     if ndmin is not None:
         # Handle non-None ndmin like np.loadtxt.  Might change this eventually?

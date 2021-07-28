@@ -100,6 +100,13 @@ typedef struct _parser_config {
       */
      bool allow_float_for_int;
 
+     /*
+      * If true, encode fields prior to applying converter functions.
+      * This preserves backwards compatiblity with np.loadtxt behavior in
+      * Python 2, where converter functions could be used to decode values.
+      */
+     bool byte_converters;
+
 } parser_config;
 
 parser_config default_parser_config(void);

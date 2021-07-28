@@ -294,7 +294,7 @@ _readtext_from_filename(PyObject *self, PyObject *args, PyObject *kwargs)
                              "usecols", "skiprows",
                              "max_rows", "converters",
                              "dtype", "codes", "sizes",
-                             "encoding", NULL};
+                             "encoding", "byte_converters", NULL};
     char *filename;
     char *delimiter = ",";
     char *comment = "#";
@@ -313,6 +313,8 @@ _readtext_from_filename(PyObject *self, PyObject *args, PyObject *kwargs)
     PyObject *sizes;
     PyObject *encoding;
 
+    int byte_converters = false;
+
     char *codes_ptr = NULL;
     int32_t *sizes_ptr = NULL;
 
@@ -321,11 +323,12 @@ _readtext_from_filename(PyObject *self, PyObject *args, PyObject *kwargs)
     PyObject *arr = NULL;
     int num_dtype_fields;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|$ssssssOiiOOOOO", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|$ssssssOiiOOOOOp", kwlist,
                                      &filename, &delimiter, &comment, &quote,
                                      &decimal, &sci, &imaginary_unit, &usecols, &skiprows,
                                      &max_rows, &converters,
-                                     &dtype, &codes, &sizes, &encoding)) {
+                                     &dtype, &codes, &sizes, &encoding,
+                                     &byte_converters)) {
         return NULL;
     }
 
@@ -342,6 +345,7 @@ _readtext_from_filename(PyObject *self, PyObject *args, PyObject *kwargs)
     pc.ignore_trailing_spaces = false;
     pc.ignore_blank_lines = true;
     pc.strict_num_fields = false;
+    pc.byte_converters = byte_converters;
 
     if (dtype == Py_None) {
         num_dtype_fields = -1;
@@ -383,7 +387,7 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
                              "usecols", "skiprows",
                              "max_rows", "converters",
                              "dtype", "codes", "sizes",
-                             "encoding", NULL};
+                             "encoding", "byte_converters", NULL};
     PyObject *file;
     char *delimiter = ",";
     char *comment = "#";
@@ -401,6 +405,8 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
     PyObject *sizes;
     PyObject *encoding;
 
+    int byte_converters = false;
+
     char *codes_ptr = NULL;
     int32_t *sizes_ptr = NULL;
 
@@ -408,11 +414,12 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
     PyObject *arr = NULL;
     int num_dtype_fields;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|$ssssssOiiOOOOO", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|$ssssssOiiOOOOOp", kwlist,
                                      &file, &delimiter, &comment, &quote,
                                      &decimal, &sci, &imaginary_unit, &usecols, &skiprows,
                                      &max_rows, &converters,
-                                     &dtype, &codes, &sizes, &encoding)) {
+                                     &dtype, &codes, &sizes, &encoding,
+                                     &byte_converters)) {
         return NULL;
     }
 
@@ -429,6 +436,7 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
     pc.ignore_trailing_spaces = false;
     pc.ignore_blank_lines = true;
     pc.strict_num_fields = false;
+    pc.byte_converters = byte_converters;
 
     if (dtype == Py_None) {
         num_dtype_fields = -1;
