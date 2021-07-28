@@ -69,7 +69,7 @@ PyObject *call_converter_function(PyObject *func, char32_t *token, bool byte_con
     if (byte_converters) {
         s = PyObject_CallMethod(s, "encode", NULL);
         if (s == NULL) {
-            fprintf(stderr, "*** encode failed ***\n");
+//            fprintf(stderr, "*** encode failed ***\n");
             return s;
         }
     }
@@ -77,9 +77,9 @@ PyObject *call_converter_function(PyObject *func, char32_t *token, bool byte_con
     // Apply converter function
     PyObject *result = PyObject_CallFunctionObjArgs(func, s, NULL);
     Py_DECREF(s);
-    if (result == NULL) {
-        // fprintf(stderr, "*** PyObject_CallFunctionObjArgs failed ***\n");
-    }
+//    if (result == NULL) {
+//        fprintf(stderr, "*** PyObject_CallFunctionObjArgs failed ***\n");
+//    }
     return result;
 }
 
@@ -136,13 +136,15 @@ size_t max_token_len_with_converters(char32_t **tokens, int num_tokens,
             // XXX check for obj == NULL!
             PyObject *s = PyObject_Str(obj);
             if (s == NULL) {
-                fprintf(stderr, "STR FAILED!\n");
+                // fprintf(stderr, "STR FAILED!\n");
+                return NULL;
             }
             Py_DECREF(obj);
             // XXX check for s == NULL!
             Py_ssize_t len = PySequence_Length(s);
             if (len == -1) {
-                fprintf(stderr, "LEN FAILED!\n");
+                // fprintf(stderr, "LEN FAILED!\n");
+                return NULL;
             }
             // XXX check for len == -1
             Py_DECREF(s);
