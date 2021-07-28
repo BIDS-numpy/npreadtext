@@ -81,7 +81,7 @@ def read(file, *, delimiter=',', comment='#', quote='"',
     encoding : str, optional
         Encoding used to decode the inputfile. The special value 'bytes'
         (the default) enables backwards-compatible behavior for `converters`,
-        ensuring that inputs to the converter functions are `latin1`-encoded
+        ensuring that inputs to the converter functions are encoded
         bytes objects. The special value 'bytes' has no additional effect if 
         ``converters=None``. If encoding is ``'bytes'`` or ``None``, the
         default system encoding is used.
