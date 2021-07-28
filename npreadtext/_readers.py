@@ -167,12 +167,6 @@ def read(file, *, delimiter=',', comment='#', quote='"',
                 raise TypeError('values of the converters dictionary must '
                                 'be callable, but the value associated with '
                                 f'the key {key!r} is not')
-            if byte_converters:
-                def tobytes_first(x, conv):
-                    if isinstance(x, bytes):
-                        return conv(x)
-                    return conv(x.encode("latin1"))
-                converters[key] = functools.partial(tobytes_first, func)
 
     if ndmin not in [None, 0, 1, 2]:
         raise ValueError(f'ndmin must be None, 0, 1, or 2; got {ndmin}')
