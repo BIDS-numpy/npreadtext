@@ -62,8 +62,14 @@ PyObject *call_converter_function(PyObject *func, char32_t *token)
         // fprintf(stderr, "*** PyUnicode_FromKindAndData failed ***\n");
         return s;
     }
-    PyObject *result = PyObject_CallFunctionObjArgs(func, s, NULL);
+    PyObject *b = PyObject_CallMethod(s, "encode", NULL);
+    if (b == NULL) {
+        fprintf(stderr, "*** encode failed ***\n");
+        return b;
+    }
+    PyObject *result = PyObject_CallFunctionObjArgs(func, b, NULL);
     Py_DECREF(s);
+    Py_DECREF(b);
     if (result == NULL) {
         // fprintf(stderr, "*** PyObject_CallFunctionObjArgs failed ***\n");
     }
@@ -115,7 +121,9 @@ size_t max_token_len_with_converters(char32_t **tokens, int num_tokens,
         if (conv_funcs && conv_funcs[j]) {
             PyObject *obj = call_converter_function(conv_funcs[i], tokens[j]);
             if (obj == NULL) {
-                fprintf(stderr, "CALL FAILED!\n");
+//                fprintf(stderr, "CALL FAILED! strlen(tokens[j]) = %u, tokens[j] = %u\n",
+//                                strlen32(tokens[j]), tokens[j][0]);
+                return NULL;
             }
             // XXX check for obj == NULL!
             PyObject *s = PyObject_Str(obj);
