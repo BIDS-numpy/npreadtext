@@ -85,3 +85,15 @@ Then run the same procedure on the patched branch:
 The results can be compared simply with ``diff``::
 
     diff -y --color /tmp/master.bench /tmp/npreadtext.bench
+
+Comparing with other text loaders
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There is also a script ``bench/bench.py`` to facilitate basic performance
+comparisons with other text loaders such as ``pd.read_csv``.
+The script uses the IPython ``%timeit`` magic so should be run with ipython,
+e.g.
+
+.. code-block:: bash
+
+   ipython -i bench/bench.py
