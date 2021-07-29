@@ -215,21 +215,21 @@ def test_bad_values(dtype):
 def test_converters():
     txt = StringIO('1.5,2.5\n3.0,XXX\n5.5,6.0')
     conv = {-1: lambda s: np.nan if s == 'XXX' else float(s)}
-    a = read(txt, dtype=np.float64, converters=conv)
+    a = read(txt, dtype=np.float64, converters=conv, encoding=None)
     assert_equal(a, [[1.5, 2.5], [3.0, np.nan], [5.5, 6.0]])
 
 
 def test_converters_and_usecols():
     txt = StringIO('1.5,2.5,3.5\n3.0,4.0,XXX\n5.5,6.0,7.5\n')
     conv = {-1: lambda s: np.nan if s == 'XXX' else float(s)}
-    a = read(txt, dtype=np.float64, converters=conv, usecols=[0, 2])
+    a = read(txt, dtype=np.float64, converters=conv, usecols=[0, 2], encoding=None)
     assert_equal(a, [[1.5, 3.5], [3.0, np.nan], [5.5, 7.5]])
 
 
 def test_unicode_with_converter():
     txt = StringIO('cat,dog\nαβγ,δεζ\nabc,def\n')
     conv = {0: lambda s: s.upper()}
-    a = read(txt, dtype=np.dtype('U12'), converters=conv)
+    a = read(txt, dtype=np.dtype('U12'), converters=conv, encoding=None)
     assert_equal(a, [['CAT', 'dog'], ['ΑΒΓ', 'δεζ'], ['ABC', 'def']])
 
 
