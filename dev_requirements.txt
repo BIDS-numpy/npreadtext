@@ -1,0 +1,6 @@
+# For testing
+pytest
+hypothesis
+# For benchmarking
+ipython
+pandas

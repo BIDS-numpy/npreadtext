@@ -10,17 +10,16 @@ Requires NumPy::
 
     pip install -r requirements.txt
 
-To run the numpy test suite via ``compat/`` you'll also need some of the
-numpy testing dependencies, namely ``pytest`` and ``hypothesis``::
+To run the test and benchmarking suites, you will need some additional tools::
 
-    pip install -r test_requirements.txt
+    pip install -r dev_requirements.txt
 
 Build/Install
 -------------
 
 Build and install w/ pip: ``pip install -e .``. The ``--verbose`` flag is
 useful for seing build logs: ``pip install -e . --verbose``.
-Full build log also via ``python setup.py build_ext -i``.
+Full (syntax-highlighted) build log also via ``python setup.py build_ext -i``.
 
 Testing
 -------
