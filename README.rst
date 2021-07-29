@@ -54,33 +54,42 @@ by running everything in the same virtualenv and falling back on basic utils.
 Setting up
 ~~~~~~~~~~
 
- - Create new (empty) virtualenv
- - In numpy repo
-   - ``pip install -r test_requirements.txt``
-   - ``pip install -e .``
-   - ``pip install asv virtualenv``
- - In this repo
-   - ``pip install -e .``
- - Back in numpy repo, create a branch (asv works best with committed changes)
-   - ``git checkout -b monkeypatch-npreadtxt``
-   - Modify the ``bench_io.py`` benchmark file to patch loadtxt, e.g. at the top
-     of the file::
-     
-       from npreadtext._loadtxt import _loadtxt
-       np.loadtxt = _loadtxt
-   - Commit the changes
+- Create new (empty) virtualenv
+- In numpy repo:
+
+  - ``pip install -r test_requirements.txt``
+  - ``pip install -e .``
+  - ``pip install asv virtualenv``
+
+- In this repo:
+
+  - ``pip install -e .``
+
+- Back in numpy repo, create a branch (asv works best with committed changes):
+
+  - ``git checkout -b monkeypatch-npreadtxt``
+  - Modify the ``bench_io.py`` benchmark file to patch loadtxt, e.g. at the top
+  of the file::
+    
+      from npreadtext._loadtxt import _loadtxt
+      np.loadtxt = _loadtxt
+
+  - Commit the changes
 
 Running
 ~~~~~~~
 
 In the numpy repo, checkout the branch you want to compare against (presumably
-master):
- - ``git checkout master``
- - ``cd benchmarks``
- - ``asv run -n -e --python=same -b bench_io |tee > /tmp/master.bench``
+``main``):
+
+- ``git checkout main``
+- ``cd benchmarks``
+- ``asv run -n -e --python=same -b bench_io |tee > /tmp/main.bench``
+
 Then run the same procedure on the patched branch:
- - ``git checkout monkeypatch-npreadtext``
- - ``asv run -n -e --python=same -b bench_io |tee > /tmp/npreadtext.bench``
+
+- ``git checkout monkeypatch-npreadtext``
+- ``asv run -n -e --python=same -b bench_io |tee > /tmp/npreadtext.bench``
 
 The results can be compared simply with ``diff``::
 
