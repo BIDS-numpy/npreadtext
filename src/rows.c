@@ -764,6 +764,15 @@ void *read_rows(stream *s, int *nrows,
                         Py_ssize_t len;
                         int kind;
                         void *data;
+                        // The value returned by the converter may be a bytes
+                        // object when e.g. `encoding="bytes"`. In this case,
+                        // decode before processing
+                        if (PyBytes_Check(converted)) {
+                            PyObject* converted_unicode = PyObject_CallMethod(
+                                converted, "decode", NULL);
+                            converted = converted_unicode;
+                            Py_DECREF(converted_unicode);
+                        }
                         if (!PyUnicode_Check(converted)) {
                             read_error->error_type = ERROR_BAD_FIELD;
                             break;

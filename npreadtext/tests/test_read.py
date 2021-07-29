@@ -243,6 +243,21 @@ def test_converter_with_structured_dtype():
     assert_equal(a, expected)
 
 
+def test_converter_with_unicode_dtype():
+    """
+    With the default 'bytes' encoding, tokens are encoded prior to converting.
+    This means that the output of the converter may be bytes instead of
+    unicode as expected by `read_rows`.
+    This test checks that outputs from the above scenario are properly
+    decoded before parsing by `read_rows`.
+    """
+    txt = StringIO('abc,def\nrst,xyz')
+    conv = {col: bytes.upper for col in range(2)}
+    a = read(txt, dtype=np.dtype('U3'), converters=conv)
+    expected = np.array([['ABC', 'DEF'], ['RST', 'XYZ']])
+    assert_equal(a, expected)
+
+
 @pytest.mark.parametrize('dtype, actual_dtype', [('S', np.dtype('S5')),
                                                  ('U', np.dtype('U5'))])
 def test_string_no_length_given(dtype, actual_dtype):
