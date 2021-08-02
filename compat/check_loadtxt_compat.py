@@ -29,7 +29,20 @@ if __name__ == "__main__":
                     'Default is 1.')
     parser.add_argument('-v', '--verbose', type=int, choices=[1, 2, 3],
                         default=1, help=verbose_help)
+    ignore_help = (
+        'comma-separated list of individual tests to ignore.\n\n'
+        'For example: To run all the tests in TestLoadTxt *except* for '
+        '`test_max_rows` and `test_1D`::\n\n'
+        '  check_loadtxt_compat.py -t numpy.lib.tests.test_io::TestLoadTxt '
+        '--ignore="test_max_rows,test_1D"\n'
+    )
+    parser.add_argument('-i', '--ignore', type=str, default='', help=ignore_help)
 
     args = parser.parse_args()
 
-    np.test(verbose=args.verbose, tests=[args.test])
+    # Convert --ignore str to extra_argv input of np.test via pytest -k flag
+    extra_argv = None
+    if args.ignore:
+        extra_argv = [f'-k not {args.ignore.replace(",", " and not ")}']
+
+    np.test(verbose=args.verbose, tests=[args.test], extra_argv=extra_argv)
