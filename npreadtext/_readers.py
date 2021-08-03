@@ -2,8 +2,6 @@
 import os
 import codecs
 import types
-import functools
-import io
 from pathlib import Path
 import operator
 import numpy as np
@@ -82,7 +80,7 @@ def read(file, *, delimiter=',', comment='#', quote='"',
         Encoding used to decode the inputfile. The special value 'bytes'
         (the default) enables backwards-compatible behavior for `converters`,
         ensuring that inputs to the converter functions are encoded
-        bytes objects. The special value 'bytes' has no additional effect if 
+        bytes objects. The special value 'bytes' has no additional effect if
         ``converters=None``. If encoding is ``'bytes'`` or ``None``, the
         default system encoding is used.
 

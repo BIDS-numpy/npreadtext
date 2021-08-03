@@ -57,7 +57,7 @@ PyObject *call_converter_function(PyObject *func, char32_t *token, bool byte_con
     while (token[tokenlen]) {
         ++tokenlen;
     }
- 
+
     // Convert token to a Python unicode object
     PyObject *s = PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, token, tokenlen);
     if (s == NULL) {
@@ -398,7 +398,7 @@ void *read_rows(stream *s, int *nrows,
         else {
             // *Not* the first line...
             if (track_string_size) {
-                size_t new_itemsize;
+                size_t new_itemsize, maxlen;
                 // typecode must be 'S' or 'U'.
                 // Find the maximum field length in the current line.
                 if (converters != Py_None) {
@@ -411,8 +411,6 @@ void *read_rows(stream *s, int *nrows,
                     maxlen = max_token_len(result, actual_num_fields,
                                                   usecols, num_usecols);
                 }
-                size_t maxlen = max_token_len(result, actual_num_fields,
-                                              usecols, num_usecols);
                 new_itemsize = (field_types[0].typecode == 'S') ? maxlen : 4*maxlen;
                 if (new_itemsize > field_types[0].itemsize) {
                     // There is a field in this row whose length is
