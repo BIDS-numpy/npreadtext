@@ -61,15 +61,14 @@ PyObject *call_converter_function(PyObject *func, char32_t *token, bool byte_con
     // Convert token to a Python unicode object
     PyObject *s = PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, token, tokenlen);
     if (s == NULL) {
-        // fprintf(stderr, "*** PyUnicode_FromKindAndData failed ***\n");
         return s;
     }
 
     // If byte_converters flag is set, encode prior to calling converter
     if (byte_converters) {
+        // TODO: Is it safe to use the same PyObject to store the encoded result?
         s = PyObject_CallMethod(s, "encode", NULL);
         if (s == NULL) {
-//            fprintf(stderr, "*** encode failed ***\n");
             return s;
         }
     }
@@ -77,9 +76,6 @@ PyObject *call_converter_function(PyObject *func, char32_t *token, bool byte_con
     // Apply converter function
     PyObject *result = PyObject_CallFunctionObjArgs(func, s, NULL);
     Py_DECREF(s);
-//    if (result == NULL) {
-//        fprintf(stderr, "*** PyObject_CallFunctionObjArgs failed ***\n");
-//    }
     return result;
 }
 
@@ -129,21 +125,17 @@ size_t max_token_len_with_converters(char32_t **tokens, int num_tokens,
             PyObject *obj = call_converter_function(conv_funcs[i], tokens[j],
                                                     byte_converters);
             if (obj == NULL) {
-//                fprintf(stderr, "CALL FAILED! strlen(tokens[j]) = %u, tokens[j] = %u\n",
-//                                strlen32(tokens[j]), tokens[j][0]);
                 return NULL;
             }
             // XXX check for obj == NULL!
             PyObject *s = PyObject_Str(obj);
             if (s == NULL) {
-                // fprintf(stderr, "STR FAILED!\n");
                 return NULL;
             }
             Py_DECREF(obj);
             // XXX check for s == NULL!
             Py_ssize_t len = PySequence_Length(s);
             if (len == -1) {
-                // fprintf(stderr, "LEN FAILED!\n");
                 return NULL;
             }
             // XXX check for len == -1
