@@ -15,6 +15,7 @@
 #include "stream.h"
 #include "tokenize.h"
 #include "sizes.h"
+#include "char32utils.h"
 #include "conversions.h"
 #include "field_types.h"
 #include "rows.h"
@@ -81,7 +82,7 @@ max_token_len(
         char32_t **tokens, int num_tokens, int32_t *usecols, int num_usecols)
 {
     size_t maxlen = 0;
-    for (size_t i = 0; i < num_tokens; ++i) {
+    for (int i = 0; i < num_tokens; ++i) {
         size_t j;
         if (usecols == NULL) {
             j = i;
@@ -107,7 +108,7 @@ max_token_len_with_converters(
     size_t maxlen = 0;
     size_t m;
 
-    for (size_t i = 0; i < num_tokens; ++i) {
+    for (int i = 0; i < num_tokens; ++i) {
         size_t j;
         if (usecols == NULL) {
             j = i;
@@ -156,17 +157,17 @@ create_conv_funcs(
         int current_num_fields, read_error_type *read_error)
 {
     PyObject **conv_funcs = NULL;
-    size_t j, k;
 
     conv_funcs = calloc(num_usecols, sizeof(PyObject *));
     if (conv_funcs == NULL) {
         read_error->error_type = ERROR_OUT_OF_MEMORY;
         return NULL;
     }
-    for (j = 0; j < num_usecols; ++j) {
+    for (int j = 0; j < num_usecols; ++j) {
         PyObject *key;
         PyObject *func;
         // k is the column index of the field in the file.
+        size_t k;
         if (usecols == NULL) {
             k = j;
         }
@@ -428,7 +429,6 @@ read_rows(stream *s,
         }
 
         for (j = 0; j < num_usecols; ++j) {
-            int error = ERROR_OK;
             // f is the index into the field_types array.  If there is only
             // one field type, it applies to all fields found in the file.
             int f = (num_field_types == 1) ? 0 : j;
@@ -453,7 +453,7 @@ read_rows(stream *s,
                 }
             }
 
-            read_error->error_type = 0;
+            read_error->error_type = ERROR_OK;
             read_error->line_number = stream_linenumber(s) - 1;
             read_error->field_number = k;
             read_error->char_position = -1; // FIXME

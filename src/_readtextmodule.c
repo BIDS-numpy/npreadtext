@@ -119,7 +119,6 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
     npy_intp nrows;
     int num_fields;
     field_type *ft = NULL;
-    size_t rowsize;
 
     bool homogeneous;
     npy_intp shape[2];
@@ -157,7 +156,6 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
     }
 
     homogeneous = field_types_is_homogeneous(num_fields, ft);
-    rowsize = field_types_total_size(num_fields, ft);
 
     if (usecols == Py_None) {
         ncols = num_fields;
@@ -182,8 +180,7 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
         char *dtypestr = field_types_build_str(ncols, cols, homogeneous, ft);
         if (dtypestr == NULL) {
             free(ft);
-            PyErr_SetString(PyExc_MemoryError, "out of memory");
-            return NULL;
+            return PyErr_NoMemory();
         }
 
         PyObject *dtstr = PyUnicode_FromString(dtypestr);

@@ -25,7 +25,7 @@ typedef struct _stream {
     int (*stream_seek)(void *sdata, long int pos);
     // Note that the first argument to stream_close is the stream pointer
     // itself, not the stream_data pointer.
-    int (*stream_close)(void *strm, int);
+    int (*stream_close)(struct _stream *strm, int);
 } stream;
 
 

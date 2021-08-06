@@ -142,6 +142,10 @@ field_types_build_str(
     // Fill in the string
     int p = 0;
     for (int j = 0; j < num_cols; ++j) {
+        /*
+         * TODO: k is unused, the dtype-inferred path with usecols must
+         *       be broken.
+         */
         int k;
         if (cols == NULL) {
             // No indirection via cols.
