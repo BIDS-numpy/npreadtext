@@ -9,11 +9,9 @@ jobs:
     strategy:
       # max-parallel: 4
       matrix:
-        os: [ubuntu]  # Add macos and windows
+        os: [ubuntu, macos]  # Add windows
         python-version: [3.7, 3.8, 3.9]
         numpy-version: [1.19.*, 1.20.*, 1.21.*]
-        compat-test-arg: ["numpy.lib.tests.test_io::TestLoadTxt",
-                          "numpy.lib.tests.test_regression::TestRegression::test_loadtxt_fields_subarrays"]
         compat-test-ignore: ["test_converters_decode,test_converters_nodecode,test_comments_multiple,test_str_dtype,test_dtype_with_object,test_from_float_hex,test_binary_load"]
 
     steps:
@@ -40,7 +38,14 @@ jobs:
 
     - name: loadtxt-compat-regression
       run: |
-        python compat/check_loadtxt_compat.py -v 3 -t ${{ matrix.compat-test-arg }} --ignore ${{ matrix.compat-test-ignore }}
+        python compat/check_loadtxt_compat.py -v 3 -t \
+        numpy.lib.tests.test_io::TestLoadTxt \
+        --ignore ${{ matrix.compat-test-ignore }}
+
+    - name: loadtxt-subarrays-regression
+      run: |
+        python compat/check_loadtxt_compat.py -v 3 -t \
+        "numpy.lib.tests.test_regression::TestRegression::test_loadtxt_fields_subarrays"
 
     - name: Run C tests
       run: |
