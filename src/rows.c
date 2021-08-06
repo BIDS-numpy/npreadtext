@@ -66,8 +66,7 @@ PyObject *call_converter_function(PyObject *func, char32_t *token, bool byte_con
 
     // If byte_converters flag is set, encode prior to calling converter
     if (byte_converters) {
-        // TODO: Is it safe to use the same PyObject to store the encoded result?
-        s = PyObject_CallMethod(s, "encode", NULL);
+        Py_SETREF(s, PyUnicode_AsEncodedString(s, NULL, NULL));
         if (s == NULL) {
             return s;
         }
@@ -125,18 +124,18 @@ size_t max_token_len_with_converters(char32_t **tokens, int num_tokens,
             PyObject *obj = call_converter_function(conv_funcs[i], tokens[j],
                                                     byte_converters);
             if (obj == NULL) {
-                return NULL;
+                return -1;
             }
             // XXX check for obj == NULL!
             PyObject *s = PyObject_Str(obj);
             if (s == NULL) {
-                return NULL;
+                return -1;
             }
             Py_DECREF(obj);
             // XXX check for s == NULL!
             Py_ssize_t len = PySequence_Length(s);
             if (len == -1) {
-                return NULL;
+                return -1;
             }
             // XXX check for len == -1
             Py_DECREF(s);
@@ -757,11 +756,11 @@ void *read_rows(stream *s, int *nrows,
                         // The value returned by the converter may be a bytes
                         // object when e.g. `encoding="bytes"`. In this case,
                         // decode before processing
+                        // TODO: Should probably check for failed decoding here?
                         if (PyBytes_Check(converted)) {
-                            PyObject* converted_unicode = PyObject_CallMethod(
-                                converted, "decode", NULL);
-                            converted = converted_unicode;
-                            Py_DECREF(converted_unicode);
+                            PyObject* converted_unicode = PyUnicode_FromEncodedObject(
+                                converted, NULL, NULL);
+                            Py_SETREF(converted, converted_unicode);
                         }
                         if (!PyUnicode_Check(converted)) {
                             read_error->error_type = ERROR_BAD_FIELD;
