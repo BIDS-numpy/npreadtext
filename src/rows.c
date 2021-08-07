@@ -32,6 +32,19 @@
 
 #define ALLOW_PARENS true
 
+
+/*
+ * Defines liberated from NumPy's, only used for the PyArray_Pack hack!
+ * TODO: Remove!
+ */
+#if PY_VERSION_HEX < 0x030900a4
+    /* Introduced in https://github.com/python/cpython/commit/d2ec81a8c99796b51fb8c49b77a7fe369863226f */
+    #define Py_SET_TYPE(obj, type) ((Py_TYPE(obj) = (type)), (void)0)
+    /* Introduced in https://github.com/python/cpython/commit/c86a11221df7e37da389f9c6ce6e47ea22dc44ff */
+    #define Py_SET_REFCNT(obj, refcnt) ((Py_REFCNT(obj) = (refcnt)), (void)0)
+#endif
+
+
 //
 // If num_field_types is not 1, actual_num_fields must equal num_field_types.
 //
