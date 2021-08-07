@@ -92,7 +92,7 @@ blocks_destroy(blocks_data *b)
 //
 
 char *
-blocks_get_row_ptr(blocks_data *b, size_t k)
+blocks_get_row_ptr(blocks_data *b, size_t k, bool needs_init)
 {
     int rows_per_block = b->rows_per_block;
     int block_table_length = b->block_table_length;
@@ -129,7 +129,12 @@ blocks_get_row_ptr(blocks_data *b, size_t k)
     if (b->block_table[block_number] == NULL) {
         // Haven't allocated this block yet...
         int block_size = b->row_size * rows_per_block;
-        b->block_table[block_number] = malloc(block_size);
+        if (!needs_init) {
+            b->block_table[block_number] = malloc(block_size);
+        }
+        else {
+            b->block_table[block_number] = calloc(block_size, 1);
+        }
         if (b->block_table[block_number] == NULL) {
             return NULL;
         }
@@ -227,7 +232,7 @@ int main(int argc, char *argv[])
     }
 
     for (size_t k = 0; k < num_rows; ++k) {
-        char *ptr = blocks_get_row_ptr(b, k);
+        char *ptr = blocks_get_row_ptr(b, k, false);
         if (ptr == NULL) {
             fprintf(stderr, "blocks_get_row_ptr(b, %zu) returned NULL\n", k);
             exit(-1);

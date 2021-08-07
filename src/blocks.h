@@ -1,6 +1,8 @@
 #ifndef _BLOCKS_H_
 #define _BLOCKS_H_
 
+#include <stdbool.h>
+
 
 typedef struct _blocks_data
 {
@@ -18,7 +20,7 @@ void
 blocks_destroy(blocks_data *b);
 
 char *
-blocks_get_row_ptr(blocks_data *b, size_t k);
+blocks_get_row_ptr(blocks_data *b, size_t k, bool needs_init);
 
 int
 blocks_uniform_resize(blocks_data *b, size_t num_fields, size_t new_itemsize);

@@ -236,7 +236,8 @@ read_rows(stream *s,
         int *nrows, int num_field_types, field_type *field_types,
         parser_config *pconfig, int32_t *usecols, int num_usecols,
         int skiplines, PyObject *converters, void *data_array,
-        int *num_cols, bool homogeneous, read_error_type *read_error)
+        int *num_cols, bool homogeneous, bool needs_init,
+        read_error_type *read_error)
 {
     char *data_ptr;
     int current_num_fields;
@@ -427,7 +428,7 @@ read_rows(stream *s,
         }
 
         if (use_blocks) {
-            data_ptr = blocks_get_row_ptr(blks, row_count);
+            data_ptr = blocks_get_row_ptr(blks, row_count, needs_init);
             if (data_ptr == NULL) {
                 blocks_destroy(blks);
                 read_error->error_type = ERROR_OUT_OF_MEMORY;
@@ -469,6 +470,37 @@ read_rows(stream *s,
 
             int err = ERROR_OK;
 
+            if (typecode == 'x' || conv_funcs[j] != NULL) {
+                /* Converts to unicode and calls custom converter (if set) */
+                converted = call_converter_function(conv_funcs[j], result[k]);
+                if (converted == NULL) {
+                    read_error->error_type = ERROR_CONVERTER_FAILED;
+                    break;
+                }
+                /* TODO: Dangerous semi-copy from PyArray_Pack which this
+                 *       should use, but cannot (it is not yet public).
+                 *       This will get some casts wrong (unlike PyArray_Pack),
+                 *       and like it (currently) does necessarily handle an
+                 *       array return correctly (but maybe that is fine).
+                 */
+                PyArrayObject_fields arr_fields = {
+                        .flags = NPY_ARRAY_WRITEABLE,  /* assume array is not behaved. */
+                };
+                Py_SET_TYPE(&arr_fields, &PyArray_Type);
+                Py_SET_REFCNT(&arr_fields, 1);
+                arr_fields.descr = field_types[f].descr;
+                int res = field_types[f].descr->f->setitem(
+                        converted, data_ptr, &arr_fields);
+                Py_DECREF(converted);
+                if (res < 0) {
+                    read_error->error_type = ERROR_CONVERTER_FAILED;
+                    break;
+                }
+                data_ptr += field_types[f].itemsize;
+                continue;
+            }
+
+            /* Fast paths, use when possible. */
             if (k >= current_num_fields && (
                     typecode == 'i' || typecode == 'u')) {
                 /* Memset here for simplicity with integers */
@@ -592,35 +624,6 @@ read_rows(stream *s,
                 else {
                     memset(data_ptr, 0, field_types[f].itemsize);
                 }
-            }
-            else {
-                /* Converts to unicode and calls custom converter (if set) */
-                converted = call_converter_function(conv_funcs[j], result[k]);
-                if (converted == NULL) {
-                    read_error->error_type = ERROR_CONVERTER_FAILED;
-                    break;
-                }
-                /* TODO: Dangerous semi-copy from PyArray_Pack which this
-                 *       should use, but cannot (it is not yet public).
-                 *       This will get some casts wrong (unlike PyArray_Pack),
-                 *       and like it (currently) does necessarily handle an
-                 *       array return correctly (but maybe that is fine).
-                 */
-                PyArrayObject_fields arr_fields = {
-                        .flags = NPY_ARRAY_WRITEABLE,  /* assume array is not behaved. */
-                };
-                Py_SET_TYPE(&arr_fields, &PyArray_Type);
-                Py_SET_REFCNT(&arr_fields, 1);
-                arr_fields.descr = field_types[f].descr;
-                int res = field_types[f].descr->f->setitem(
-                        converted, data_ptr, &arr_fields);
-                Py_DECREF(converted);
-                if (res < 0) {
-                    read_error->error_type = ERROR_CONVERTER_FAILED;
-                    break;
-                }
-                data_ptr += field_types[f].itemsize;
-                continue;
             }
 
             if (field_types[f].swap) {

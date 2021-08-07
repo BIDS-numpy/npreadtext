@@ -124,6 +124,7 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
     field_type *ft = NULL;
 
     bool homogeneous;
+    bool needs_init = false;
     npy_intp shape[2];
 
     if (dtype == Py_None) {
@@ -169,6 +170,7 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
          */
         out_dtype = (PyArray_Descr *)dtype;
         Py_INCREF(out_dtype);
+        needs_init = PyDataType_FLAGCHK(out_dtype, NPY_NEEDS_INIT);
 
         /* TODO: Ridiculous, should just pass it in (or reuse num_fields) */
         homogeneous = num_dtype_fields == 1 && (out_dtype == dtypes[0]);
@@ -209,13 +211,15 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
         }
         read_error_type read_error;
         int num_rows = nrows;
-        void *result = read_rows(s, &num_rows, num_fields, ft, pc,
-                                 cols, ncols, skiprows,
-                                 converters,
-                                 PyArray_DATA(arr),
-                                 &num_cols, homogeneous, &read_error);
+        void *result = read_rows(s,
+                &num_rows, num_fields, ft, pc, cols, ncols, skiprows,
+                converters, PyArray_DATA(arr), &num_cols, homogeneous,
+                needs_init,  /* unused, data is allocated and initialized */
+                &read_error);
         if (read_error.error_type != 0) {
+            /* TODO: Has to use the goto finish here, probably. */
             free(ft);
+            Py_DECREF(arr);
             raise_read_exception(&read_error);
             return NULL;
         }
@@ -232,8 +236,18 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
                                    (ft[0].typecode == 'U')));
         void *result = read_rows(s, &num_rows, num_fields, ft, pc,
                                  cols, ncols, skiprows, converters,
-                                 NULL, &num_cols, homogeneous, &read_error);
+                                 NULL, &num_cols, homogeneous, needs_init,
+                                 &read_error);
         if (read_error.error_type != 0) {
+            /* TODO: Has to use the goto finish here, probably. */
+            /*
+             * TODO: This is wrong if the result contains references, we
+             *       need to decref those then.  The easiest would be to
+             *       make the block manager actually use an array directly
+             *       maybe (that way we have an array to delete).
+             *       This is also a problem if the array allocation below fails
+             *       but that is very unlikely at least...
+             */
             free(ft);
             raise_read_exception(&read_error);
             return NULL;
