@@ -69,9 +69,9 @@ raise_read_exception(read_error_type *read_error)
     }
     else if (read_error->error_type == ERROR_BAD_FIELD) {
         PyErr_Format(PyExc_RuntimeError,
-                     "line %d, field %d: bad %s value",
+                     "line %d, field %d: bad %S value",
                      read_error->line_number, read_error->field_number + 1,
-                     typecode_to_str(read_error->typecode));
+                     read_error->descr);
     }
     else if (read_error->error_type == ERROR_CHANGED_NUMBER_OF_FIELDS) {
         PyObject *exc = LOADTXT_COMPATIBILITY ? PyExc_ValueError : PyExc_RuntimeError;

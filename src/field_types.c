@@ -129,34 +129,6 @@ field_types_grow(int new_num_field_types, int num_field_types, field_type **ft)
 }
 
 
-/* TODO: This function is only used for error reporting, but nonsense now */
-char *
-typecode_to_str(char typecode)
-{
-    char *typ;
-
-    switch (typecode) {
-        case 'b': typ = "int8"; break;
-        case 'B': typ = "uint8"; break;
-        case 'h': typ = "int16"; break;
-        case 'H': typ = "uint16"; break;
-        case 'i': typ = "int32"; break;
-        case 'I': typ = "uint32"; break;
-        case 'q': typ = "int64"; break;
-        case 'Q': typ = "uint64"; break;
-        case 'f': typ = "float32"; break;
-        case 'd': typ = "float64"; break;
-        case 'c': typ = "complex64"; break;
-        case 'z': typ = "complex128"; break;
-        case 'S': typ = "S"; break;
-        case 'U': typ = "U"; break;
-        default:  typ = "unknown";
-    }
-
-    return typ;
-}
-
-
 /*
  * Convert the discovered dtypes to descriptors.  This function cleans up
  * after itself on error.

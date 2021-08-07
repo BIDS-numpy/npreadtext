@@ -19,7 +19,7 @@ typedef struct _read_error {
     int line_number;
     int field_number;
     int char_position;
-    char typecode;
+    PyArray_Descr *descr;
     // int32_t itemsize;  // not sure this is needed.
     int32_t column_index; // for ERROR_INVALID_COLUMN_INDEX;
 } read_error_type;

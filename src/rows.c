@@ -466,7 +466,7 @@ read_rows(stream *s,
             read_error->line_number = stream_linenumber(s) - 1;
             read_error->field_number = k;
             read_error->char_position = -1; // FIXME
-            read_error->typecode = typecode;
+            read_error->descr = field_types[f].descr;
 
             int err = ERROR_OK;
 

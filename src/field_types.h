@@ -58,7 +58,4 @@ field_types_init_descriptors(int num_field_types, field_type *ft);
 PyArray_Descr *
 field_types_to_descr(int num_fields, field_type *ft);
 
-char *
-typecode_to_str(char typecode);
-
 #endif
