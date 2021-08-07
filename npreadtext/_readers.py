@@ -169,8 +169,8 @@ def read(file, *, delimiter=',', comment='#', quote='"',
     # creates `codes` and `sizes` using Python than C.
     if dtype is not None:
         dtypes = np.lib._iotools.flatten_dtype(dtype, flatten_base=True)
-        if (len(dtypes) > 1 and usecols is not None and
-                len(codes) != len(usecols)):
+        if (len(dtypes) != 1 and usecols is not None and
+                len(dtypes) != len(usecols)):
             raise ValueError(f"length of usecols ({len(usecols)}) and "
                              f"number of fields in dtype ({len(codes)}) "
                              "do not match.")
