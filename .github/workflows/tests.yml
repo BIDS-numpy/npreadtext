@@ -47,12 +47,6 @@ jobs:
         python compat/check_loadtxt_compat.py -v 3 -t \
         "numpy.lib.tests.test_regression::TestRegression::test_loadtxt_fields_subarrays"
 
-    - name: Run C tests
-      run: |
-        cd src/ctests
-        bash build_runtest.sh
-        ./runtests
-
   loadtxt-full-compat:
     runs-on: ${{ matrix.os }}-latest
     continue-on-error: true
