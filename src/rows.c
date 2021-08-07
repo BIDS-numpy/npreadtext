@@ -5,7 +5,7 @@
 #include <Python.h>
 #define NO_IMPORT_ARRAY
 #define PY_ARRAY_UNIQUE_SYMBOL npreadtext_ARRAY_API
-#include <numpy/arrayobject.h>
+#include "numpy/arrayobject.h"
 
 #include <stdio.h>
 #include <string.h>

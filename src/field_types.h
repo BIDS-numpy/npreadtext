@@ -5,7 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #define PY_ARRAY_UNIQUE_SYMBOL npreadtext_ARRAY_API
-#include <numpy/ndarraytypes.h>
+#define NO_IMPORT_ARRAY
+#include "numpy/ndarraytypes.h"
 
 
 typedef struct _field_type {

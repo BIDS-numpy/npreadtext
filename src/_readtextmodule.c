@@ -8,7 +8,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #define PY_ARRAY_UNIQUE_SYMBOL npreadtext_ARRAY_API
-#include <numpy/arrayobject.h>
+#include "numpy/arrayobject.h"
 
 #include "parser_config.h"
 #include "stream_file.h"

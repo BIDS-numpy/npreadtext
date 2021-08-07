@@ -27,6 +27,7 @@ with open('README.rst', 'r') as f:
 
 
 def configuration(parent_package='', top_path=None):
+    import numpy
     from numpy.distutils.misc_util import Configuration
 
     config = Configuration(None, parent_package, top_path)
@@ -37,9 +38,11 @@ def configuration(parent_package='', top_path=None):
               'conversions.c', 'str_to.c', 'str_to_int.c', 'str_to_double.c',
               'pow10table.c',
               'stream_file.c', 'stream_python_file_by_line.c', 'blocks.c',
-              'char32utils.c', 'field_types.c', 'dtoa_modified.c']
-    config.add_extension('npreadtext._readtextmodule',
-                         sources=[path.join('src', t) for t in cfiles])
+              'char32utils.c', 'field_types.c', 'dtoa_modified.c',]
+    config.add_extension(
+            'npreadtext._readtextmodule',
+            sources=[path.join('src', t) for t in cfiles],
+            include_dirs=[numpy.get_include()],)
     return config
 
 
