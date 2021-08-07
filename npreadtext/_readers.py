@@ -7,8 +7,7 @@ import operator
 import numpy as np
 from ._filegen import FileGen
 from . import _flatten_dtype
-from ._readtextmodule import (_readtext_from_filename,
-                              _readtext_from_file_object)
+from ._readtextmodule import _readtext_from_file_object
 
 
 def _check_nonneg_int(value, name="argument"):
@@ -169,19 +168,16 @@ def read(file, *, delimiter=',', comment='#', quote='"',
     # information.  This is because it is easier to write the code that
     # creates `codes` and `sizes` using Python than C.
     if dtype is not None:
-        codes, sizes = _flatten_dtype.flatten_dtype2(dtype)
-        if (len(codes) > 1 and usecols is not None and
+        dtypes = np.lib._iotools.flatten_dtype(dtype, flatten_base=True)
+        if (len(dtypes) > 1 and usecols is not None and
                 len(codes) != len(usecols)):
             raise ValueError(f"length of usecols ({len(usecols)}) and "
                              f"number of fields in dtype ({len(codes)}) "
                              "do not match.")
-        if len(codes) == 1 and usecols is not None:
-            codes = np.repeat(codes, len(usecols))
-            sizes = np.repeat(sizes, len(usecols))
-            assert sizes.dtype == np.int32
+        if len(dtypes) == 1 and usecols is not None:
+            dtypes *= len(usecols)
     else:
-        codes = None
-        sizes = None
+        dtypes = None
 
     # XXX Reorganize these nested ifs...
     # XXX Not everything is handled correctly at the moment.
@@ -198,8 +194,8 @@ def read(file, *, delimiter=',', comment='#', quote='"',
                                              skiprows=skiprows,
                                              max_rows=max_rows,
                                              converters=converters,
-                                             dtype=dtype, codes=codes,
-                                             sizes=sizes, encoding=enc)
+                                             dtype=dtype, dtypes=dtypes,
+                                             encoding=enc)
         finally:
             f.close()
     elif isinstance(file, Path):
@@ -213,7 +209,7 @@ def read(file, *, delimiter=',', comment='#', quote='"',
                                              skiprows=skiprows,
                                              max_rows=max_rows,
                                              converters=converters,
-                                             dtype=dtype,
+                                             dtype=dtype, dtypes=dtypes,
                                              codes=codes, sizes=sizes,
                                              encoding=enc)
     elif isinstance(file, types.GeneratorType):
@@ -231,8 +227,7 @@ def read(file, *, delimiter=',', comment='#', quote='"',
                                          skiprows=skiprows,
                                          max_rows=max_rows,
                                          converters=converters,
-                                         dtype=dtype,
-                                         codes=codes, sizes=sizes,
+                                         dtype=dtype, dtypes=dtypes,
                                          encoding=enc)
     else:
         # Assume file is a file object.
@@ -244,7 +239,7 @@ def read(file, *, delimiter=',', comment='#', quote='"',
                                          usecols=usecols, skiprows=skiprows,
                                          max_rows=max_rows,
                                          converters=converters,
-                                         dtype=dtype, codes=codes, sizes=sizes,
+                                         dtype=dtype, dtypes=dtypes,
                                          encoding=enc)
 
     if ndmin is not None:

@@ -66,40 +66,32 @@ classify_type(char32_t *field,
 
     switch (prev_type) {
         case '*':
-        case 'Q':
-        case 'q':
+        case 'u':
+        case 'i':
             *u = str_to_uint64(field, UINT64_MAX, &error);
             if (error == 0) {
-                return 'Q';
+                return prev_type == 'i' ? 'i' : 'u';  /* retain if signed */
             }
             if (error == ERROR_MINUS_SIGN) {
                 *i = str_to_int64(field, INT64_MIN, INT64_MAX, &error);
                 if (error == 0) {
-                    return 'q';
+                    return 'i';
                 }
             }
             /*@fallthrough@*/
-        case 'd':
+        case 'f':
             success = to_double(field, &real, sci, decimal);
             if (success) {
-                return 'd';
+                return 'f';
             }
             /*@fallthrough@*/
-        case 'z':
+        case 'c':
             success = to_complex(field, &real, &imag, sci, decimal, imaginary_unit,
                                  ALLOW_PARENS);
             if (success) {
-                return 'z';
+                return 'c';
             }
-            if (prev_type == 'd' || prev_type == 'z') {
-                /* Don't bother trying to parse a date in this case. */
-                break;
-            }
-            /*@fallthrough@*/
-        //case 'U':
-        //    if ((datetime_fmt != NULL) && (strptime(field, datetime_fmt, &tm))) {
-        //        return 'U';
-        //    }
+        /* TODO: We may want try dates. Some dates can be integers? */
     }
     while (*field == ' ') {
         ++field;
@@ -131,39 +123,38 @@ classify_type(char32_t *field,
  *
  */
 
-char
-type_for_integer_range(int64_t imin, uint64_t umax)
+void
+update_type_for_integer_range(
+        char *type, size_t *itemsize, int64_t imin, uint64_t umax)
 {
-    char type;
-
-    if (imin == 0) {
+    if (*type == 'u') {
         /* unsigned int type */
         if (umax <= UINT8_MAX) {
-            type = 'B';
+            *itemsize = 1;
         }
         else if (umax <= UINT16_MAX) {
-            type = 'H';
+            *itemsize = 2;
         }
         else if (umax <= UINT32_MAX) {
-            type = 'I';
+            *itemsize = 4;
         }
         else {
-            type = 'Q';
+            *itemsize = 8;
         }
     }
     else {
         /* int type */
         if (imin >= INT8_MIN && umax <= INT8_MAX) {
-            type = 'b';
+            *itemsize = 1;
         }
         else if (imin >= INT16_MIN && umax <= INT16_MAX) {
-            type = 'h';
+            *itemsize = 2;
         }
         else if (imin >= INT32_MIN && umax <= INT32_MAX) {
-            type = 'i';
+            *itemsize = 4;
         }
         else if (umax <= INT64_MAX) {
-            type = 'q';
+            *itemsize = 8;
         }
         else {
             /* 
@@ -171,8 +162,8 @@ type_for_integer_range(int64_t imin, uint64_t umax)
              * range can not be represented with an integer format.
              *  We'll have to convert these to floating point.
              */
-            type = 'd';
+            *type = 'f';
+            *itemsize = 8;
         }
     }
-    return type;
 }

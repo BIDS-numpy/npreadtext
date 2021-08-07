@@ -7,6 +7,7 @@
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
+#define PY_ARRAY_UNIQUE_SYMBOL npreadtext_ARRAY_API
 #include <numpy/arrayobject.h>
 
 #include "parser_config.h"
@@ -111,9 +112,11 @@ static PyObject *
 _readtext_from_stream(stream *s, char *filename, parser_config *pc,
                       PyObject *usecols, int skiprows, int max_rows,
                       PyObject *converters,
-                      PyObject *dtype, int num_dtype_fields, char *codes, int32_t *sizes)
+                      PyObject *dtype, PyArray_Descr **dtypes,
+                      int num_dtype_fields)
 {
     PyObject *arr = NULL;
+    PyArray_Descr *out_dtype = NULL;
     int32_t *cols;
     int ncols;
     npy_intp nrows;
@@ -141,22 +144,44 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
             // an array with shape (0, 0) and data type float64.
             npy_intp dims[2] = {0, 0};
             arr = PyArray_SimpleNew(2, dims, NPY_FLOAT64);
-            return arr;
+            goto finish;
+        }
+        homogeneous = field_types_is_homogeneous(num_fields, ft);
+        if (field_types_init_descriptors(num_fields, ft) < 0) {
+            goto finish;
+        }
+        if (homogeneous) {
+            out_dtype = ft[0].descr;
+            Py_INCREF(out_dtype);
+        }
+        else {
+            out_dtype = field_types_to_descr(num_fields, ft);
+            if (out_dtype == NULL) {
+                goto finish;
+            }
         }
     }
     else {
+        /*
+         * If dtypes[0] is dtype the input was not structured and the result
+         * is considered "homogeneous" and we have to discover the number of
+         * columns/
+         */
+        out_dtype = (PyArray_Descr *)dtype;
+        Py_INCREF(out_dtype);
+
+        /* TODO: Ridiculous, should just pass it in (or reuse num_fields) */
+        homogeneous = num_dtype_fields == 1 && (out_dtype == dtypes[0]);
+
         // A dtype was given.
         num_fields = num_dtype_fields;
-        ft = field_types_create(num_fields, codes, sizes);
+        ft = field_types_create(num_fields, dtypes);
         if (ft == NULL) {
             PyErr_Format(PyExc_MemoryError, "out of memory");
             return NULL;
         }
         nrows = max_rows;
     }
-
-    homogeneous = field_types_is_homogeneous(num_fields, ft);
-
     if (usecols == Py_None) {
         ncols = num_fields;
         cols = NULL;
@@ -176,26 +201,8 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
         int num_cols;
         int ndim = homogeneous ? 2 : 1;
 
-        // Build the dtype from the ft array of field types.
-        char *dtypestr = field_types_build_str(ncols, cols, homogeneous, ft);
-        if (dtypestr == NULL) {
-            free(ft);
-            return PyErr_NoMemory();
-        }
-
-        PyObject *dtstr = PyUnicode_FromString(dtypestr);
-        free(dtypestr);
-        if (!dtstr) {
-            free(ft);
-            return NULL;
-        }
-        PyArray_Descr *dtype1;
-        if (!PyArray_DescrConverter(dtstr, &dtype1)) {
-            free(ft);
-            return NULL;
-        }
-
-        arr = PyArray_SimpleNewFromDescr(ndim, shape, dtype1);
+        Py_INCREF(out_dtype);
+        arr = PyArray_SimpleNewFromDescr(ndim, shape, out_dtype);
         if (!arr) {
             free(ft);
             return NULL;
@@ -206,7 +213,7 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
                                  cols, ncols, skiprows,
                                  converters,
                                  PyArray_DATA(arr),
-                                 &num_cols, &read_error);
+                                 &num_cols, homogeneous, &read_error);
         if (read_error.error_type != 0) {
             free(ft);
             raise_read_exception(&read_error);
@@ -225,7 +232,7 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
                                    (ft[0].typecode == 'U')));
         void *result = read_rows(s, &num_rows, num_fields, ft, pc,
                                  cols, ncols, skiprows, converters,
-                                 NULL, &num_cols, &read_error);
+                                 NULL, &num_cols, homogeneous, &read_error);
         if (read_error.error_type != 0) {
             free(ft);
             raise_read_exception(&read_error);
@@ -233,7 +240,7 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
         }
 
         shape[0] = num_rows;
-        if (PyDataType_ISSTRING(dtype) || !PyDataType_ISEXTENDED(dtype)) {
+        if (PyDataType_ISSTRING(out_dtype) || !PyDataType_ISEXTENDED(out_dtype)) {
             ndim = 2;
             if (num_rows > 0) {
                 shape[1] = num_cols;
@@ -265,9 +272,9 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
         else {
             // We have to INCREF dtype, because the Python caller owns a
             // reference, and PyArray_NewFromDescr steals a reference to it.
-            Py_INCREF(dtype);
+            Py_INCREF(out_dtype);
             // XXX Fix memory management - `result` was malloc'd.
-            arr = PyArray_NewFromDescr(&PyArray_Type, (PyArray_Descr *) dtype,
+            arr = PyArray_NewFromDescr(&PyArray_Type, out_dtype,
                                        ndim, shape, NULL, result, 0, NULL);
         }
         if (!arr) {
@@ -277,114 +284,12 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
         }
     }
 
-    free(ft);
-
-    return arr;
-}
-
-
-static PyObject *
-_readtext_from_filename(PyObject *self, PyObject *args, PyObject *kwargs)
-{
-    static char *kwlist[] = {"filename", "delimiter", "comment", "quote",
-                             "decimal", "sci", "imaginary_unit",
-                             "usecols", "skiprows",
-                             "max_rows", "converters",
-                             "dtype", "codes", "sizes",
-                             "encoding", NULL};
-    char *filename;
-    char *delimiter = ",";
-    char *comment = "#";
-    char *quote = "\"";
-    char *decimal = ".";
-    char *sci = "E";
-    char *imaginary_unit = "j";
-    int skiprows;
-    int max_rows;
-
-    PyObject *usecols;
-    PyObject *converters;
-
-    PyObject *dtype;
-    PyObject *codes;
-    PyObject *sizes;
-    PyObject *encoding;
-
-    char *codes_ptr = NULL;
-    int32_t *sizes_ptr = NULL;
-
-    parser_config pc;
-    int buffer_size = 1 << 21;
-    PyObject *arr = NULL;
-    int num_dtype_fields;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|$ssssssOiiOOOOO", kwlist,
-                                     &filename, &delimiter, &comment, &quote,
-                                     &decimal, &sci, &imaginary_unit, &usecols, &skiprows,
-                                     &max_rows, &converters,
-                                     &dtype, &codes, &sizes, &encoding)) {
-        return NULL;
+  finish:
+    Py_XDECREF(out_dtype);
+    if (ft != NULL) {
+        field_types_clear(num_fields, ft);
+        free(ft);
     }
-
-    pc.delimiter = *delimiter;
-    pc.comment[0] = comment[0];
-    pc.comment[1] = comment[0] == '\0' ? '\0' : comment[1];
-    pc.quote = *quote;
-    pc.decimal = *decimal;
-    pc.sci = *sci;
-    pc.imaginary_unit = *imaginary_unit;
-    pc.allow_float_for_int = true;
-    pc.allow_embedded_newline = true;
-    pc.ignore_leading_spaces = false;
-    pc.ignore_trailing_spaces = false;
-    pc.ignore_blank_lines = true;
-    pc.strict_num_fields = false;
-
-    if (dtype == Py_None) {
-        num_dtype_fields = -1;
-        codes_ptr = NULL;
-        sizes_ptr = NULL;
-    }
-    else {
-        // If `dtype` is not None, then `codes` must be a contiguous 1-d numpy
-        // array with dtype 'S1' (i.e. an array of characters), and `sizes`
-        // must be a contiguous 1-d numpy array with dtype int32 that has the
-        // same length as `codes`.  This code assumes this is true and does not
-        // validate the arguments--it is expected that the calling code will
-        // do so.
-        num_dtype_fields = PyArray_SIZE(codes);
-        codes_ptr = PyArray_DATA(codes);
-        sizes_ptr = PyArray_DATA(sizes);
-    }
-
-    /*
-     * TODO: If we keep this logic around, we should probably replace it
-     *       with the logic used in NumPy's `fromfile` function.
-     *       But, we have to figure out how to handle encoding correctly.
-     *       It may make more sense to assume that we can do this "in Python"
-     *       so long, we use the `read` or `read1` method of the file-like
-     *       object in big chunks (rather than by-line streaming, which we
-     *       have to support, though).
-     */
-    FILE *fp = fopen(filename, "rb");
-    if (fp == NULL) {
-        PyErr_Format(PyExc_RuntimeError, "Unable to open '%s'", filename);
-        return NULL;
-    }
-
-    stream *s = stream_file(fp, buffer_size);
-    if (s == NULL) {
-        fclose(fp);
-        PyErr_Format(PyExc_RuntimeError, "Unable to open '%s'", filename);
-        return NULL;
-    }
-
-    arr = _readtext_from_stream(s, filename, &pc, usecols, skiprows, max_rows,
-                                converters,
-                                dtype, num_dtype_fields, codes_ptr, sizes_ptr);
-
-    stream_close(s, RESTORE_NOT);
-    fclose(fp);
     return arr;
 }
 
@@ -396,7 +301,7 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
                              "decimal", "sci", "imaginary_unit",
                              "usecols", "skiprows",
                              "max_rows", "converters",
-                             "dtype", "codes", "sizes",
+                             "dtype", "dtypes",
                              "encoding", NULL};
     PyObject *file;
     char *delimiter = ",";
@@ -411,22 +316,20 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
     PyObject *converters;
 
     PyObject *dtype;
-    PyObject *codes;
-    PyObject *sizes;
+    PyObject *dtypes_obj = NULL;
     PyObject *encoding;
 
-    char *codes_ptr = NULL;
-    int32_t *sizes_ptr = NULL;
+    PyArray_Descr **dtypes = NULL;
 
     parser_config pc;
     PyObject *arr = NULL;
     int num_dtype_fields;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|$ssssssOiiOOOOO", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|$ssssssOiiOOOO", kwlist,
                                      &file, &delimiter, &comment, &quote,
                                      &decimal, &sci, &imaginary_unit, &usecols, &skiprows,
                                      &max_rows, &converters,
-                                     &dtype, &codes, &sizes, &encoding)) {
+                                     &dtype, &dtypes_obj, &encoding)) {
         return NULL;
     }
 
@@ -444,32 +347,33 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
     pc.ignore_blank_lines = true;
     pc.strict_num_fields = false;
 
-    if (dtype == Py_None) {
+    /*
+     * TODO: This needs some hefty input validation!
+     */
+    if (dtypes_obj == Py_None) {
+        assert(dtype == Py_None);
         num_dtype_fields = -1;
-        codes_ptr = NULL;
-        sizes_ptr = NULL;
     }
     else {
-        // If `dtype` is not None, then `codes` must be a contiguous 1-d numpy
-        // array with dtype 'S1' (i.e. an array of characters), and `sizes`
-        // must be a contiguous 1-d numpy array with dtype int32 that has the
-        // same length as `codes`.  This code assumes this is true and does not
-        // validate the arguments--it is expected that the calling code will
-        // do so.
-        num_dtype_fields = PyArray_SIZE(codes);
-        codes_ptr = PyArray_DATA(codes);
-        sizes_ptr = PyArray_DATA(sizes);
+        dtypes_obj = PySequence_Fast(dtypes_obj, "dtypes not a sequence :(");
+        if (dtypes_obj == NULL) {
+            return NULL;
+        }
+        num_dtype_fields = PySequence_Fast_GET_SIZE(dtypes_obj);
+        dtypes = (PyArray_Descr **)PySequence_Fast_ITEMS(dtypes_obj);
     }
 
     stream *s = stream_python_file_by_line(file, encoding);
     if (s == NULL) {
         PyErr_Format(PyExc_RuntimeError, "Unable to access the file.");
+        Py_DECREF(dtypes_obj);
         return NULL;
     }
 
     arr = _readtext_from_stream(s, NULL, &pc, usecols, skiprows, max_rows,
                                 converters,
-                                dtype, num_dtype_fields, codes_ptr, sizes_ptr);
+                                dtype, dtypes, num_dtype_fields);
+    Py_DECREF(dtypes_obj);
     stream_close(s, RESTORE_NOT);
     return arr;
 }
@@ -481,8 +385,6 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
 
 PyMethodDef module_methods[] = {
     {"_readtext_from_file_object", (PyCFunction) _readtext_from_file_object,
-         METH_VARARGS | METH_KEYWORDS, "testing"},
-    {"_readtext_from_filename", (PyCFunction) _readtext_from_filename,
          METH_VARARGS | METH_KEYWORDS, "testing"},
     {0} // sentinel
 };

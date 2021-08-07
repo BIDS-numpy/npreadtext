@@ -1,5 +1,5 @@
 
-
+#include <string.h>
 #include "typedefs.h"
 #include "str_to.h"
 #include "error_types.h"
@@ -8,13 +8,11 @@
 
 
 #define DECLARE_TO_INT(intw, INT_MIN, INT_MAX)                                  \
-    intw##_t                                                                        \
-    to_##intw(char32_t *field, parser_config *pconfig, int *error)                  \
+    int                                                                             \
+    to_##intw(char32_t *field, parser_config *pconfig, char *ptr)                   \
     {                                                                               \
         intw##_t x;                                                                 \
         int ierror = 0;                                                             \
-                                                                                    \
-        *error = ERROR_OK;                                                          \
                                                                                     \
         x = (intw##_t) str_to_int64(field, INT_MIN, INT_MAX, &ierror);              \
         if (ierror) {                                                               \
@@ -23,27 +21,26 @@
                 char32_t decimal = pconfig->decimal;                                \
                 char32_t sci = pconfig->sci;                                        \
                 if ((*field == '\0') || !to_double(field, &fx, sci, decimal)) {     \
-                    *error = ERROR_BAD_FIELD;                                       \
+                    return ERROR_BAD_FIELD;                                         \
                 }                                                                   \
                 else {                                                              \
                     x = (intw##_t) fx;                                              \
                 }                                                                   \
             }                                                                       \
             else {                                                                  \
-                *error = ERROR_BAD_FIELD;                                           \
+                return ERROR_BAD_FIELD;                                             \
             }                                                                       \
         }                                                                           \
-        return x;                                                                   \
+        memcpy(ptr, &x, sizeof(x));                                                 \
+        return ERROR_OK;                                                            \
     }                                                                               \
 
 #define DECLARE_TO_UINT(uintw, UINT_MAX)                                            \
-    uintw##_t                                                                       \
-    to_##uintw(char32_t *field, parser_config *pconfig, int *error)                 \
+    int                                                                             \
+    to_##uintw(char32_t *field, parser_config *pconfig, char *ptr)                  \
     {                                                                               \
         uintw##_t x;                                                                \
         int ierror = 0;                                                             \
-                                                                                    \
-        *error = ERROR_OK;                                                          \
                                                                                     \
         x = (uintw##_t) str_to_uint64(field, UINT_MAX, &ierror);                    \
         if (ierror) {                                                               \
@@ -52,17 +49,18 @@
                 char32_t decimal = pconfig->decimal;                                \
                 char32_t sci = pconfig->sci;                                        \
                 if ((*field == '\0') || !to_double(field, &fx, sci, decimal)) {     \
-                    *error = ERROR_BAD_FIELD;                                       \
+                    return ERROR_BAD_FIELD;                                         \
                 }                                                                   \
                 else {                                                              \
                     x = (uintw##_t) fx;                                             \
                 }                                                                   \
             }                                                                       \
             else {                                                                  \
-                *error = ERROR_BAD_FIELD;                                           \
+                return ERROR_BAD_FIELD;                                             \
             }                                                                       \
         }                                                                           \
-        return x;                                                                   \
+        memcpy(ptr, &x, sizeof(x));                                                 \
+        return ERROR_OK;                                                            \
     }                                                                               \
 
 DECLARE_TO_INT(int8, INT8_MIN, INT8_MAX)

@@ -146,10 +146,10 @@ analyze(stream *s, parser_config *pconfig, int skiplines, int numrows,
             typecode = classify_type(result[k], decimal, sci, imaginary_unit,
                                      &imin, &umax,
                                      types[k].typecode);
-            if (typecode == 'q' && imin < ranges[k].imin) {
+            if (typecode == 'i' && imin < ranges[k].imin) {
                 ranges[k].imin = imin;
             }
-            if (typecode == 'Q' && umax > ranges[k].umax) {
+            if ((typecode == 'i' || typecode == 'u') && umax > ranges[k].umax) {
                 ranges[k].umax = umax;
             }
             if (typecode != '*') {
@@ -175,39 +175,29 @@ analyze(stream *s, parser_config *pconfig, int skiplines, int numrows,
 
     for (int k = 0; k < num_fields; ++k) {
         char typecode = types[k].typecode;
-        if (typecode == 'q' || typecode == 'Q') {
+        if (typecode == 'i' || typecode == 'u') {
             // Integer type.  Use imin and umax to refine the type.
-            types[k].typecode = type_for_integer_range(ranges[k].imin, ranges[k].umax);
+            update_type_for_integer_range(
+                    &types[k].typecode, &types[k].itemsize,
+                    ranges[k].imin, ranges[k].umax);
         }
-        // Note: 'f' and 'c' are included among the options below, but currently,
-        // these will not be assigned in the code above.  Eventually, the user might
-        // be able to specify the default sizes for numerical field, and the code
-        // above *might* change for this.  For now, there is no harm in including these
-        // typecodes in the switch statement.
+        /*
+         * Fix the itemsize for the remaining "types", note that if the user
+         * should be able to specify using float instead of double, these
+         * would have to be modified.
+         */
         switch (types[k].typecode) {
-            case 'b':
-            case 'B':
-                types[k].itemsize = 1;
-                break;
-            case 'h':
-            case 'H':
-                types[k].itemsize = 2;
-                break;
-            case 'i':
-            case 'I':
             case 'f':
-                types[k].itemsize = 4;
+                types[k].itemsize = 8;
                 break;
-            case 'q':
-            case 'Q':
-            case 'd':
             case 'c':
+                types[k].itemsize = 16;
+                break;
             case 'U':
                 types[k].itemsize = 8;
                 break;
-            case 'z':
-                types[k].itemsize = 16;
-                break;
+            default:
+                assert(types[k].itemsize != 0 || types[k].typecode == '*');
         }
     }
 

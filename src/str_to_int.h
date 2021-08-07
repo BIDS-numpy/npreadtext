@@ -4,8 +4,8 @@
 #include "typedefs.h"
 #include "parser_config.h"
 
-#define DECLARE_TO_INT_PROTOTYPE(intw)                                          \
-    intw##_t to_##intw(char32_t *field, parser_config *pconfig, int *error);    \
+#define DECLARE_TO_INT_PROTOTYPE(intw)                                    \
+    int to_##intw(char32_t *field, parser_config *pconfig, char *ptr);    \
 
 DECLARE_TO_INT_PROTOTYPE(int8)
 DECLARE_TO_INT_PROTOTYPE(int16)
