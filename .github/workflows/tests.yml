@@ -12,7 +12,7 @@ jobs:
         os: [ubuntu, macos]  # Add windows
         python-version: [3.7, 3.8, 3.9]
         numpy-version: [1.19.*, 1.20.*, 1.21.*]
-        compat-test-ignore: ["test_converters_decode,test_converters_nodecode,test_comments_multiple,test_str_dtype,test_dtype_with_object,test_from_float_hex,test_binary_load"]
+        compat-test-ignore: ["test_converters_decode,test_converters_nodecode,test_comments_multiple,test_str_dtype,test_from_float_hex,test_binary_load"]
 
     steps:
     - uses: actions/checkout@v2
