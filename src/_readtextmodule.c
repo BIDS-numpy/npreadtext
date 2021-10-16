@@ -14,9 +14,7 @@
 #include "stream_pyobject.h"
 #include "field_types.h"
 #include "rows.h"
-#include "error_types.h"
-
-#define LOADTXT_COMPATIBILITY true
+#include "str_to_int.h"
 
 
 //
@@ -247,19 +245,12 @@ PyInit__readtextmodule(void)
 {
     PyObject* m = NULL;
 
-    //
-    // Initialize numpy.
-    //
     import_array();
     if (PyErr_Occurred()) {
         return NULL;
     }
+    double_descr = PyArray_DescrFromType(NPY_DOUBLE);
 
-    // ----------------------------------------------------------------
-    // Finish the extension module creation.
-    // ----------------------------------------------------------------  
-
-    // Create module
     m = PyModule_Create(&moduledef);
 
     return m;

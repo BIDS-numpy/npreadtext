@@ -20,8 +20,6 @@
 #include "conversions.h"
 #include "field_types.h"
 #include "rows.h"
-#include "str_to.h"
-#include "str_to_int.h"
 #include "growth.h"
 
 /*

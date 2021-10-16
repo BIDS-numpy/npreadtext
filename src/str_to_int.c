@@ -2,11 +2,12 @@
 #include <Python.h>
 
 #include <string.h>
-#include "str_to.h"
-#include "error_types.h"
+#include "str_to_int.h"
 #include "conversions.h"
 #include "parser_config.h"
 
+
+NPY_NO_EXPORT PyArray_Descr *double_descr = NULL;
 
 // TODO: The float fallbacks are seriously awkward, why? Or at least why this way?
 #define DECLARE_TO_INT(intw, INT_MIN, INT_MAX)                                      \
@@ -21,9 +22,7 @@
         if (str_to_int64(str, end, INT_MIN, INT_MAX, &parsed) < 0) {                \
             if (pconfig->allow_float_for_int) {                                     \
                 double fx;                                                          \
-                Py_UCS4 decimal = pconfig->decimal;                                 \
-                Py_UCS4 sci = pconfig->sci;                                         \
-                if ((*str == '\0') || !to_double_raw(str, &fx, decimal, sci)) {     \
+                if (to_double(double_descr, str, end, (char *)&fx, pconfig) < 0) {  \
                     return -1;                                                      \
                 }                                                                   \
                 else {                                                              \
@@ -56,9 +55,7 @@
         if (str_to_uint64(str, end, UINT_MAX, &parsed) < 0) {                       \
             if (pconfig->allow_float_for_int) {                                     \
                 double fx;                                                          \
-                Py_UCS4 decimal = pconfig->decimal;                                 \
-                Py_UCS4 sci = pconfig->sci;                                         \
-                if ((*str == '\0') || !to_double_raw(str, &fx, decimal, sci)) {     \
+                if (to_double(double_descr, str, end, (char *)&fx, pconfig) < 0) {  \
                     return -1;                                                      \
                 }                                                                   \
                 else {                                                              \

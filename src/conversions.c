@@ -9,7 +9,7 @@
 #include <stdbool.h>
 
 #include "conversions.h"
-#include "str_to.h"
+#include "str_to_int.h"
 
 
 double
@@ -75,22 +75,6 @@ to_float(PyArray_Descr *descr,
         descr->f->copyswap(dataptr, dataptr, 1, NULL);
     }
     return 0;
-}
-
-
-/* Note: Currently used in the integer code as a fallback */
-bool
-to_double_raw(const Py_UCS4 *str, double *res, Py_UCS4 decimal, Py_UCS4 sci)
-{
-    if (*str == '\0') {
-        return false;
-    }
-
-    int error;
-    Py_UCS4 *p_end;
-    *res = _Py_dg_strtod_modified(
-            str, &p_end, &error, decimal, sci, true);
-    return (error == 0) && (!*p_end);
 }
 
 
