@@ -17,7 +17,7 @@
  *
  * This function must support unaligned memory access.
  *
- * TODO: An earlier version of the code had unused default versions (pandas
+ * NOTE: An earlier version of the code had unused default versions (pandas
  *       does this) when columns are missing.  We could define this either
  *       by passing `NULL` in, or by adding a default explicitly somewhere.
  *       (I think users should probably have to define the default, at which
@@ -25,7 +25,7 @@
  *
  * NOTE: We are currently passing the parser config, this could be made public
  *       or could be set up to be dtype specific/private.  Always passing
- *       pconfig fully seems easier right now.
+ *       pconfig fully seems easier right now even if it may change.
  */
 typedef int (set_from_ucs4_function)(
         PyArray_Descr *descr, const Py_UCS4 *str, const Py_UCS4 *end,
@@ -35,12 +35,6 @@ typedef struct _field_type {
     set_from_ucs4_function *set_from_ucs4;
     /* The original NumPy descriptor */
     PyArray_Descr *descr;
-
-    // itemsize:
-    //   Size of field, in bytes.  In theory this would only be
-    //   needed for the 'S' or 'U' type codes, but it is expected to be
-    //   correctly filled in for all the types.
-    size_t itemsize;
 } field_type;
 
 

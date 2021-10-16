@@ -20,7 +20,6 @@ _Py_dg_strtod_modified(
 
 /*
  * Coercion to boolean is done via integer right now.
- * TODO: Like the integer code, does not handle embedded \0 characters!
  */
 int
 to_bool(PyArray_Descr *NPY_UNUSED(descr),

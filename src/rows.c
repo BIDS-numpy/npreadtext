@@ -41,12 +41,12 @@ compute_row_size(
     // rowsize is the number of bytes in each "row" of the array
     // filled in by this function.
     if (num_field_types == 1) {
-        row_size = actual_num_fields * field_types[0].itemsize;
+        row_size = actual_num_fields * field_types[0].descr->elsize;
     }
     else {
         row_size = 0;
         for (int k = 0; k < num_field_types; ++k) {
-            row_size += field_types[k].itemsize;
+            row_size += field_types[k].descr->elsize;
         }
     }
     return row_size;
@@ -379,7 +379,7 @@ read_rows(stream *s,
                     err = true;
                 }
             }
-            data_ptr += field_types[f].itemsize;
+            data_ptr += field_types[f].descr->elsize;
 
             if (NPY_UNLIKELY(err)) {
                 PyObject *exc, *val, *tb;
