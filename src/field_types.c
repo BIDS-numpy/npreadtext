@@ -39,7 +39,6 @@ field_types_create(int num_field_types, PyArray_Descr *dtypes[])
     }
     for (int i = 0; i < num_field_types; ++i) {
         PyArray_Descr *descr = dtypes[i];
-        ft[i].itemsize = descr->elsize;
         Py_INCREF(descr);
         ft[i].descr = descr;
 
@@ -47,7 +46,7 @@ field_types_create(int num_field_types, PyArray_Descr *dtypes[])
             ft[i].set_from_ucs4 = &to_bool;
         }
         else if (PyDataType_ISSIGNED(descr)) {
-            switch (ft[i].itemsize) {
+            switch (descr->elsize) {
                 case 1:
                     ft[i].set_from_ucs4 = &to_int8;
                     break;
@@ -65,7 +64,7 @@ field_types_create(int num_field_types, PyArray_Descr *dtypes[])
             }
         }
         else if (PyDataType_ISUNSIGNED(descr)) {
-            switch (ft[i].itemsize) {
+            switch (descr->elsize) {
                 case 1:
                     ft[i].set_from_ucs4 = &to_uint8;
                     break;

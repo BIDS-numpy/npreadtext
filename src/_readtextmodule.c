@@ -106,8 +106,7 @@ parse_control_character(PyObject *obj, Py_UCS4 *character)
         return 0;
     }
     if (PyUnicode_GET_LENGTH(obj) == 0) {
-        /* TODO: This sets it to a non-existing character, could use NUL */
-        *character = (Py_UCS4)-1;
+        *character = (Py_UCS4)-1;  /* character beyond unicode range */
         return 1;
     }
     *character = PyUnicode_READ_CHAR(obj, 0);
@@ -177,7 +176,6 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
     pc.c_byte_converters = c_byte_converters;
 
     if (pc.delimiter == (Py_UCS4)-1) {
-        /* TODO: We can allow a '\0' delimiter; need to refine argparsing */
         pc.delimiter_is_whitespace = true;
         /* Ignore leading whitespace to match `string.split(None)` */
         pc.ignore_leading_whitespace = true;
