@@ -56,11 +56,6 @@ to_float(PyArray_Descr *descr,
         const Py_UCS4 *str, const Py_UCS4 *end, char *dataptr,
         parser_config *pconfig)
 {
-    if (*str == '\0') {
-        /* can't parse NUL, this field is probably just empty. */
-        return -1;
-    }
-
     int error;
     Py_UCS4 *p_end;
 
@@ -83,11 +78,6 @@ to_double(PyArray_Descr *descr,
         const Py_UCS4 *str, const Py_UCS4 *end, char *dataptr,
         parser_config *pconfig)
 {
-    if (*str == '\0') {
-        /* can't parse NUL, this field is probably just empty. */
-        return -1;
-    }
-
     int error;
     Py_UCS4 *p_end;
 
@@ -106,8 +96,9 @@ to_double(PyArray_Descr *descr,
 
 
 static bool
-to_complex_raw(
-        const Py_UCS4 *item, double *p_real, double *p_imag,
+to_complex_int(
+        const Py_UCS4 *item, const Py_UCS4 *token_end,
+        double *p_real, double *p_imag,
         Py_UCS4 sci, Py_UCS4 decimal, Py_UCS4 imaginary_unit,
         bool allow_parens)
 {
@@ -115,12 +106,16 @@ to_complex_raw(
     int error;
     bool unmatched_opening_paren = false;
 
+    /* Remove whitespace before the possibly leading '(' */
+    while (Py_UNICODE_ISSPACE(*item)) {
+        ++item;
+    }
     if (allow_parens && (*item == '(')) {
         unmatched_opening_paren = true;
         ++item;
     }
     *p_real = _Py_dg_strtod_modified(item, &p_end, &error, decimal, sci, false);
-    if (*p_end == '\0') {
+    if (p_end == token_end) {
         // No imaginary part in the string (e.g. "3.5")
         *p_imag = 0.0;
         return (error == 0) && (!unmatched_opening_paren);
@@ -155,10 +150,10 @@ to_complex_raw(
             unmatched_opening_paren = false;
         }
     }
-    while(*p_end == ' ') {
+    while (Py_UNICODE_ISSPACE(*p_end)) {
         ++p_end;
     }
-    return *p_end == '\0';
+    return p_end == token_end;
 }
 
 
@@ -167,17 +162,11 @@ to_cfloat(PyArray_Descr *descr,
         const Py_UCS4 *str, const Py_UCS4 *end, char *dataptr,
         parser_config *pconfig)
 {
-    if (*str == '\0') {
-        /* can't parse NUL, this field is probably just empty. */
-        return -1;
-    }
-
     double real;
     double imag;
 
-    // TODO: This should check the end pointer (needs fixing in to_complex_int)
-    bool success = to_complex_raw(
-            str, &real, &imag,
+    bool success = to_complex_int(
+            str, end, &real, &imag,
             pconfig->sci, pconfig->decimal,
             pconfig->imaginary_unit, true);
 
@@ -198,17 +187,11 @@ to_cdouble(PyArray_Descr *descr,
         const Py_UCS4 *str, const Py_UCS4 *end, char *dataptr,
         parser_config *pconfig)
 {
-    if (*str == '\0') {
-        /* can't parse NUL, this field is probably just empty. */
-        return -1;
-    }
-
     double real;
     double imag;
 
-    // TODO: This should check the end pointer (needs fixing in to_complex_int)
-    bool success = to_complex_raw(
-            str, &real, &imag,
+    bool success = to_complex_int(
+            str, end, &real, &imag,
             pconfig->sci, pconfig->decimal,
             pconfig->imaginary_unit, true);
 

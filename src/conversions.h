@@ -20,10 +20,6 @@ to_float(PyArray_Descr *descr,
         const Py_UCS4 *str, const Py_UCS4 *end, char *dataptr,
         parser_config *pconfig);
 
-/* Note: Currently used in the iteger code as a fallback */
-bool
-to_double_raw(const Py_UCS4 *str, double *res, Py_UCS4 decimal, Py_UCS4 sci);
-
 int
 to_double(PyArray_Descr *descr,
         const Py_UCS4 *str, const Py_UCS4 *end, char *dataptr,
