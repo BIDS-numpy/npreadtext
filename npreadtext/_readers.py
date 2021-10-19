@@ -216,20 +216,6 @@ def read(fname, *, delimiter=',', comment='#', quote='"',
         # Passing -1 to the C code means "read the entire file".
         max_rows = -1
 
-    # Compute `codes` and `sizes`.  These are derived from `dtype`, and we
-    # also pass `dtype` to the C function, so we're passing in redundant
-    # information.  This is because it is easier to write the code that
-    # creates `codes` and `sizes` using Python than C.
-    if dtype is not None:
-        dtypes = np.lib._iotools.flatten_dtype(dtype, flatten_base=True)
-        if (len(dtypes) != 1 and usecols is not None and
-                len(dtypes) != len(usecols)):
-            raise ValueError(f"length of usecols ({len(usecols)}) and "
-                             f"number of fields in dtype ({len(codes)}) "
-                             "do not match.")
-    else:
-        dtypes = None
-
     fh_closing_ctx = contextlib.nullcontext()
     filelike = False
     try:
@@ -265,7 +251,7 @@ def read(fname, *, delimiter=',', comment='#', quote='"',
                     data, delimiter=delimiter, comment=comment, quote=quote,
                     decimal=decimal, sci=sci, imaginary_unit=imaginary_unit,
                     usecols=usecols, skiprows=skiprows, max_rows=max_rows,
-                    converters=converters, dtype=dtype, dtypes=dtypes,
+                    converters=converters, dtype=dtype,
                     encoding=encoding, filelike=filelike,
                     byte_converters=byte_converters)
 
@@ -292,7 +278,7 @@ def read(fname, *, delimiter=',', comment='#', quote='"',
                         data, delimiter=delimiter, comment=comment, quote=quote,
                         decimal=decimal, sci=sci, imaginary_unit=imaginary_unit,
                         usecols=usecols, skiprows=skiprows, max_rows=max_rows,
-                        converters=converters, dtype=dtype, dtypes=dtypes,
+                        converters=converters, dtype=dtype,
                         encoding=encoding, filelike=filelike,
                         byte_converters=byte_converters,
                         c_byte_converters=c_byte_converters)

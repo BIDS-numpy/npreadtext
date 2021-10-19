@@ -140,6 +140,25 @@ def test_structured_dtype_2():
     assert_array_equal(a, np.array([(((0, 1), (2, 3)),)], dtype=dt))
 
 
+def test_nested_structured_subarray():
+    # Test from numpygh-16678
+    point = np.dtype([('x', float), ('y', float)])
+    dt = np.dtype([('code', int), ('points', point, (2,))])
+    res = read(StringIO('100,1,2,3,4\n200,5,6,7,8\n'), dtype=dt)
+
+    expected = np.array([(100, [(1., 2.), (3., 4.)]),
+                         (200, [(5., 6.), (7., 8.)])], dtype=dt)
+    assert_array_equal(res, expected)
+
+
+def test_structured_dtypes_offsets():
+    # An aligned structured dtype will have additional padding:
+    dt = np.dtype("i1,i4,i1,i4,i1,i4", align=True)
+    res = read(StringIO('1,2,3,4,5,6\n7,8,9,10,11,12\n'), dtype=dt)
+
+    expected = np.array([(1, 2, 3, 4, 5, 6), (7, 8, 9, 10, 11, 12)], dtype=dt)
+    assert_array_equal(res, expected)
+
 @pytest.mark.parametrize('param', ['skiprows', 'max_rows'])
 @pytest.mark.parametrize('badval, exc', [(-3, ValueError), (1.0, TypeError)])
 def test_bad_nonneg_int(param, badval, exc):

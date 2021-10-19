@@ -35,13 +35,15 @@ typedef struct _field_type {
     set_from_ucs4_function *set_from_ucs4;
     /* The original NumPy descriptor */
     PyArray_Descr *descr;
+    /* Offset to this entry within row. */
+    npy_intp structured_offset;
 } field_type;
 
 
 void
 field_types_xclear(int num_field_types, field_type *ft);
 
-field_type *
-field_types_create(int num_field_types, PyArray_Descr *dtypes[]);
+npy_intp
+field_types_create(PyArray_Descr *descr, field_type **ft);
 
 #endif

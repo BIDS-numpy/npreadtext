@@ -13,7 +13,7 @@
 
 PyArrayObject *
 read_rows(stream *s,
-        Py_ssize_t *nrows, int num_field_types, field_type *field_types,
+        npy_intp nrows, int num_field_types, field_type *field_types,
         parser_config *pconfig, int num_usecols, int *usecols,
         Py_ssize_t skiplines, PyObject *converters,
         PyArrayObject *data_array, PyArray_Descr *out_descr,
