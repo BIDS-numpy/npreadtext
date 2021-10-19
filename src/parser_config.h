@@ -2,14 +2,12 @@
 #ifndef _PARSER_CONFIG_H_
 #define _PARSER_CONFIG_H_
 
-#include <stdint.h>
 #include <stdbool.h>
 
-
-typedef struct _parser_config {
+typedef struct {
     /*
      *  Field delimiter character.
-     *  Typically ',', ' ', '\t', or '\0'.
+     *  Typically ',', ' ', '\t', ignored if `delimiter_is_whitespace` is true.
      */
     Py_UCS4 delimiter;
 
@@ -22,24 +20,25 @@ typedef struct _parser_config {
     Py_UCS4 quote;
 
     /*
-     *  Ignore whitespace at the beginning of a field (outside/before quotes).
-     *  Is implicitly always set if we split on any whitespace.
-     */
-    bool ignore_leading_whitespace;
-
-    /*
-     * If true, the delimiter is ignored and any unicode whitespace is used
-     * for splitting (same as `string.split()` in Python).
-     */
-    bool delimiter_is_whitespace;
-
-    /*
      *  Character(s) that indicates the start of a comment.
      *  Typically '#', '%' or ';'.
      *  When encountered in a line and not inside quotes, all character
      *  from the comment character(s) to the end of the line are ignored.
      */
     Py_UCS4 comment;
+
+    /*
+     *  Ignore whitespace at the beginning of a field (outside/before quotes).
+     *  Is (and must be) set if `delimiter_is_whitespace`.
+     */
+    bool ignore_leading_whitespace;
+
+    /*
+     * If true, the delimiter is ignored and any unicode whitespace is used
+     * for splitting (same as `string.split()` in Python). In that case
+     * `ignore_leading_whitespace` should also be set.
+     */
+    bool delimiter_is_whitespace;
 
     /*
      *  A boolean value (0 or 1).  If 1, quoted fields may span
@@ -87,7 +86,5 @@ typedef struct _parser_config {
      bool c_byte_converters;
 } parser_config;
 
-parser_config
-default_parser_config(void);
 
 #endif

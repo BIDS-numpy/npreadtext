@@ -34,21 +34,15 @@
 // number of columns in the file must match the number of fields in `dtype`.
 //
 static PyObject *
-_readtext_from_stream(stream *s, char *filename, parser_config *pc,
+_readtext_from_stream(stream *s, parser_config *pc,
                       PyObject *usecols, Py_ssize_t skiprows, Py_ssize_t max_rows,
-                      PyObject *converters,
-                      PyObject *dtype, PyArray_Descr **dtypes,
-                      int num_dtype_fields)
+                      PyObject *converters, PyObject *dtype)
 {
     PyArrayObject *arr = NULL;
     PyArray_Descr *out_dtype = NULL;
     int32_t *cols;
     int ncols;
-    npy_intp nrows;
-    int num_fields;
     field_type *ft = NULL;
-
-    bool homogeneous;
 
     /*
      * If dtypes[0] is dtype the input was not structured and the result
@@ -58,17 +52,11 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
     out_dtype = (PyArray_Descr *)dtype;
     Py_INCREF(out_dtype);
 
-    /* TODO: Ridiculous, should just pass it in (or reuse num_fields) */
-    homogeneous = num_dtype_fields == 1 && (out_dtype == dtypes[0]);
-
-    // A dtype was given.
-    num_fields = num_dtype_fields;
-    ft = field_types_create(num_fields, dtypes);
-    if (ft == NULL) {
-        PyErr_Format(PyExc_MemoryError, "out of memory");
-        return NULL;
+    npy_intp num_fields = field_types_create(out_dtype, &ft);
+    if (num_fields < 0) {
+        goto finish;
     }
-    nrows = max_rows;
+    bool homogeneous = num_fields == 1 && ft[0].descr == out_dtype;
 
     if (usecols == Py_None) {
         ncols = num_fields;
@@ -79,10 +67,8 @@ _readtext_from_stream(stream *s, char *filename, parser_config *pc,
         cols = PyArray_DATA(usecols);
     }
 
-    Py_ssize_t num_rows = nrows;
-
     arr = read_rows(
-            s, &num_rows, num_fields, ft, pc,
+            s, max_rows, num_fields, ft, pc,
             ncols, cols, skiprows, converters,
             NULL, out_dtype, homogeneous);
     if (arr == NULL) {
@@ -120,8 +106,7 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
     static char *kwlist[] = {"file", "delimiter", "comment", "quote",
                              "decimal", "sci", "imaginary_unit",
                              "usecols", "skiprows",
-                             "max_rows", "converters",
-                             "dtype", "dtypes",
+                             "max_rows", "converters", "dtype",
                              "encoding", "filelike",
                              "byte_converters", "c_byte_converters",
                              NULL};
@@ -132,11 +117,8 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
     PyObject *converters = Py_None;
 
     PyObject *dtype = Py_None;
-    PyObject *dtypes_obj = Py_None;
     char *encoding = NULL;
     int filelike = 1;
-
-    PyArray_Descr **dtypes = NULL;
 
     parser_config pc = {
         .delimiter = ',',
@@ -156,10 +138,9 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
     int c_byte_converters = 0;
 
     PyObject *arr = NULL;
-    int num_dtype_fields;
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwargs, "O|$O&O&O&O&O&O&OnnOOOzppp", kwlist,
+            args, kwargs, "O|$O&O&O&O&O&O&OnnOOzppp", kwlist,
             &file,
             &parse_control_character, &pc.delimiter,
             &parse_control_character, &pc.comment,
@@ -168,7 +149,7 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
             &parse_control_character, &pc.sci,
             &parse_control_character, &pc.imaginary_unit,
             &usecols, &skiprows, &max_rows, &converters,
-            &dtype, &dtypes_obj, &encoding, &filelike,
+            &dtype, &encoding, &filelike,
             &python_byte_converters, &c_byte_converters)) {
         return NULL;
     }
@@ -181,22 +162,11 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
         pc.ignore_leading_whitespace = true;
     }
 
-    /*
-     * TODO: This needs some hefty input validation, for dtype and dtypes
-     *       (Potentially, move creation to dtypes to here: even if the
-     *       implementation remains in Python.)
-     */
-    if (!PyArray_DescrCheck(dtype) || dtypes_obj == Py_None) {
+    if (!PyArray_DescrCheck(dtype) ) {
         PyErr_SetString(PyExc_TypeError,
                 "internal error: dtype must be provided and be a NumPy dtype");
         return NULL;
     }
-    dtypes_obj = PySequence_Fast(dtypes_obj, "dtypes not a sequence :(");
-    if (dtypes_obj == NULL) {
-        return NULL;
-    }
-    num_dtype_fields = PySequence_Fast_GET_SIZE(dtypes_obj);
-    dtypes = (PyArray_Descr **)PySequence_Fast_ITEMS(dtypes_obj);
 
     stream *s;
     if (filelike) {
@@ -207,14 +177,11 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
     }
     if (s == NULL) {
         PyErr_Format(PyExc_RuntimeError, "Unable to access the file.");
-        Py_DECREF(dtypes_obj);
         return NULL;
     }
 
-    arr = _readtext_from_stream(s, NULL, &pc, usecols, skiprows, max_rows,
-                                converters,
-                                dtype, dtypes, num_dtype_fields);
-    Py_DECREF(dtypes_obj);
+    arr = _readtext_from_stream(s, &pc, usecols, skiprows, max_rows,
+                                converters, dtype);
     stream_close(s);
     return arr;
 }

@@ -33,7 +33,6 @@ typedef struct {
 
 typedef struct {
     tokenizer_parsing_state state;
-    bool ignore_leading_whitespace;
     /* Either TOKENIZE_UNQUOTED or TOKENIZE_UNQUOTED_WHITESPACE: */
     tokenizer_parsing_state unquoted_state;
     int unicode_kind;

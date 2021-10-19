@@ -29,29 +29,6 @@
 #define MIN_BLOCK_SIZE (1 << 13)
 
 
-//
-// If num_field_types is not 1, actual_num_fields must equal num_field_types.
-//
-static size_t
-compute_row_size(
-        int actual_num_fields, int num_field_types, field_type *field_types)
-{
-    size_t row_size;
-
-    // rowsize is the number of bytes in each "row" of the array
-    // filled in by this function.
-    if (num_field_types == 1) {
-        row_size = actual_num_fields * field_types[0].descr->elsize;
-    }
-    else {
-        row_size = 0;
-        for (int k = 0; k < num_field_types; ++k) {
-            row_size += field_types[k].descr->elsize;
-        }
-    }
-    return row_size;
-}
-
 
 /*
  *  Create the array of converter functions from the Python converters.
@@ -142,9 +119,8 @@ create_conv_funcs(
  *
  * @param s The stream object/struct providing reading capabilities used by
  *        the tokenizer.
- * @param nrows Pointer to the number of rows to read, or -1.  If negative
- *        all rows are read.  The value is replaced with the actual number
- *        of rows read.
+ * @param max_rows The number of rows to read, or -1.  If negative
+ *        all rows are read.
  * @param num_field_types The number of field types stored in `field_types`.
  * @param field_types Information about the dtype for each column (or one if
  *        `homogeneous`).
@@ -174,7 +150,7 @@ create_conv_funcs(
  */
 PyArrayObject *
 read_rows(stream *s,
-        Py_ssize_t *nrows, int num_field_types, field_type *field_types,
+        npy_intp max_rows, int num_field_types, field_type *field_types,
         parser_config *pconfig, int num_usecols, int *usecols,
         Py_ssize_t skiplines, PyObject *converters,
         PyArrayObject *data_array, PyArray_Descr *out_descr,
@@ -182,7 +158,7 @@ read_rows(stream *s,
 {
     char *data_ptr = NULL;
     int current_num_fields;
-    size_t row_size;
+    size_t row_size = out_descr->elsize;
     PyObject **conv_funcs = NULL;
 
     bool needs_init = PyDataType_FLAGCHK(out_descr, NPY_NEEDS_INIT);
@@ -224,7 +200,7 @@ read_rows(stream *s,
     }
 
     Py_ssize_t row_count = 0;  /* number of rows actually processed */
-    while ((*nrows < 0 || row_count < *nrows) && ts_result == 0) {
+    while ((max_rows < 0 || row_count < max_rows) && ts_result == 0) {
         ts_result = tokenize(s, &ts, pconfig);
         if (ts_result < 0) {
             goto error;
@@ -251,14 +227,14 @@ read_rows(stream *s,
 
             /* Note that result_shape[1] is only used if homogeneous is true */
             result_shape[1] = actual_num_fields;
-            /* row_size is used for growing the raw memory when necessary */
-            row_size = compute_row_size(actual_num_fields,
-                                        num_field_types, field_types);
+            if (homogeneous) {
+                row_size *= actual_num_fields;
+            }
 
             if (data_array == NULL) {
-                if (*nrows < 0) {
+                if (max_rows < 0) {
                     /*
-                     * Negative *nrows denotes to read the whole file, we
+                     * Negative max_rows denotes to read the whole file, we
                      * approach this by allocating ever larger blocks.
                      * Adds a number of rows based on `MIN_BLOCK_SIZE`.
                      * Note: later code grows assuming this is a power of two.
@@ -278,7 +254,7 @@ read_rows(stream *s,
                     data_allocated_rows = rows_per_block;
                 }
                 else {
-                    data_allocated_rows = *nrows;
+                    data_allocated_rows = max_rows;
                 }
                 result_shape[0] = data_allocated_rows;
                 Py_INCREF(out_descr);
@@ -296,8 +272,8 @@ read_rows(stream *s,
                 }
             }
             else {
-                assert(*nrows >=0);
-                data_allocated_rows = *nrows;
+                assert(max_rows >=0);
+                data_allocated_rows = max_rows;
             }
             data_ptr = PyArray_BYTES(data_array);
         }
@@ -342,44 +318,52 @@ read_rows(stream *s,
             }
         }
 
-        for (int j = 0; j < actual_num_fields; ++j) {
-            int f = homogeneous ? 0 : j;
-            // k is the column index of the field in the file.
-            int k;
-            if (usecols == NULL) {
-                k = j;
+        for (int i = 0; i < actual_num_fields; ++i) {
+            int f;  /* The field, either 0 (if homogeneous) or i. */
+            int col;  /* The column as read, remapped by usecols */
+            char *item_ptr;
+            if (homogeneous) {
+                f = 0;
+                item_ptr = data_ptr + i * field_types[0].descr->elsize;
             }
             else {
-                k = usecols[j];
-                if (k < 0) {
+                f = i;
+                item_ptr = data_ptr + field_types[f].structured_offset;
+            }
+
+            if (usecols == NULL) {
+                col = i;
+            }
+            else {
+                col = usecols[i];
+                if (col < 0) {
                     // Python-like column indexing: k = -1 means the last column.
-                    k += current_num_fields;
+                    col += current_num_fields;
                 }
-                if (NPY_UNLIKELY((k < 0) || (k >= current_num_fields))) {
+                if (NPY_UNLIKELY((col < 0) || (col >= current_num_fields))) {
                     PyErr_Format(PyExc_ValueError,
                             "invalid column index %d at row %zu with %d "
                             "columns",
-                            usecols[j], current_num_fields, row_count+1);
+                            usecols[i], current_num_fields, row_count+1);
                     goto error;
                 }
             }
 
             bool err = 0;
-            Py_UCS4 *str = ts.field_buffer + fields[k].offset;
-            Py_UCS4 *end = ts.field_buffer + fields[k + 1].offset - 1;
-            if (conv_funcs[j] == NULL) {
+            Py_UCS4 *str = ts.field_buffer + fields[col].offset;
+            Py_UCS4 *end = ts.field_buffer + fields[col + 1].offset - 1;
+            if (conv_funcs[i] == NULL) {
                 if (field_types[f].set_from_ucs4(field_types[f].descr,
-                        str, end, data_ptr, pconfig) < 0) {
+                        str, end, item_ptr, pconfig) < 0) {
                     err = true;
                 }
             }
             else {
                 if (to_generic_with_converter(field_types[f].descr,
-                        str, end, data_ptr, pconfig, conv_funcs[j]) < 0) {
+                        str, end, item_ptr, pconfig, conv_funcs[i]) < 0) {
                     err = true;
                 }
             }
-            data_ptr += field_types[f].descr->elsize;
 
             if (NPY_UNLIKELY(err)) {
                 PyObject *exc, *val, *tb;
@@ -395,7 +379,7 @@ read_rows(stream *s,
                 PyErr_Format(PyExc_ValueError,
                         "could not convert string %.100R to %S at "
                         "row %zu, column %d.",
-                        string, field_types[f].descr, row_count, k+1);
+                        string, field_types[f].descr, row_count, col+1);
                 Py_DECREF(string);
                 npy_PyErr_ChainExceptionsCause(exc, val, tb);
                 goto error;
@@ -403,6 +387,7 @@ read_rows(stream *s,
         }
 
         ++row_count;
+        data_ptr += row_size;
     }
 
     tokenizer_clear(&ts);
@@ -443,8 +428,6 @@ read_rows(stream *s,
         ((PyArrayObject_fields *)data_array)->data = new_data;
         ((PyArrayObject_fields *)data_array)->dimensions[0] = row_count;
     }
-
-    *nrows = row_count;
 
     return data_array;
 
