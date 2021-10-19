@@ -36,7 +36,6 @@ def configuration(parent_package='', top_path=None):
     cfiles = ['_readtextmodule.c',
               'growth.c', 'rows.c', 'tokenize.c.src',
               'conversions.c', 'str_to_int.c',
-              'pow10table.c',
               'stream_pyobject.c',
               'field_types.c', 'dtoa_modified.c',]
     config.add_extension(
