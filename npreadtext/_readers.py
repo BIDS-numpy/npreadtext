@@ -37,8 +37,7 @@ def _preprocess_comments(iterable, comments, encoding):
 _CHUNK_SIZE = 50000
 
 
-def read(fname, *, delimiter=',', comment='#', quote='"',
-         decimal='.', sci='E', imaginary_unit='j',
+def read(fname, *, delimiter=',', comment='#', quote='"', imaginary_unit='j',
          usecols=None, skiprows=0,
          max_rows=None, converters=None, ndmin=None, unpack=False,
          dtype=np.float64, encoding="bytes"):
@@ -60,12 +59,6 @@ def read(fname, *, delimiter=',', comment='#', quote='"',
     quote : str, optional
         Character that is used to quote string fields. Default is '"'
         (a double quote).
-    decimal : str, optional
-        The decimal point character.  Default is '.'.
-    sci : str, optional
-        The character in front of the exponent when exponential notation
-        is used for floating point values.  The default is 'E'.  The value
-        is case-insensitive.
     imaginary_unit : str, optional
         Character that represent the imaginay unit `sqrt(-1)`.
         Default is 'j'.
@@ -249,7 +242,7 @@ def read(fname, *, delimiter=',', comment='#', quote='"',
         if read_dtype_via_object_chunks is None:
             arr = _readtext_from_file_object(
                     data, delimiter=delimiter, comment=comment, quote=quote,
-                    decimal=decimal, sci=sci, imaginary_unit=imaginary_unit,
+                    imaginary_unit=imaginary_unit,
                     usecols=usecols, skiprows=skiprows, max_rows=max_rows,
                     converters=converters, dtype=dtype,
                     encoding=encoding, filelike=filelike,
@@ -276,7 +269,7 @@ def read(fname, *, delimiter=',', comment='#', quote='"',
 
                 next_arr = _readtext_from_file_object(
                         data, delimiter=delimiter, comment=comment, quote=quote,
-                        decimal=decimal, sci=sci, imaginary_unit=imaginary_unit,
+                        imaginary_unit=imaginary_unit,
                         usecols=usecols, skiprows=skiprows, max_rows=max_rows,
                         converters=converters, dtype=dtype,
                         encoding=encoding, filelike=filelike,

@@ -25,18 +25,18 @@ def test1_read1(basename, delim):
         assert_array_equal(a, al)
 
 
-@pytest.mark.parametrize('basename,sci', [('test1e.csv', 'E'),
-                                          ('test1d.csv', 'D')])
+@pytest.mark.parametrize('basename,sci', [('test1e.csv', 'E')])
 def test1_read_sci(basename, sci):
+    # test used to test also 'D', but the feature is currently removed.
     filename = path.join(path.dirname(__file__), 'data', basename)
     filename_e = path.join(path.dirname(__file__), 'data', 'test1e.csv')
     al = np.loadtxt(filename_e, delimiter=',')
 
-    a = read(filename, sci=sci)
+    a = read(filename)
     assert_array_equal(a, al)
 
     with open(filename, 'r') as f:
-        a = read(f, sci=sci)
+        a = read(f)
         assert_array_equal(a, al)
 
 
@@ -83,16 +83,6 @@ def test_comment_multichar_error_with_quote():
     # a single character string in a tuple is unpacked though:
     a = read(txt, comment=("#",), quote='"')
     assert_equal(a, [[1, 2], [3, 4]])
-
-def test_decimal_is_comma():
-    filename = path.join(path.dirname(__file__),
-                         'data', 'decimal_is_comma.txt')
-    a = read(filename, decimal=',', delimiter=' ')
-    expected = np.array([[1.5, 1.75, 2.0],
-                         [2.5, 2.75, 3.0],
-                         [3.5, 3.75, 4.0],
-                         [4.5, 4.75, 5.0]])
-    assert_array_equal(a, expected)
 
 
 def test_quoted_field():

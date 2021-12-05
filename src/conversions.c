@@ -12,12 +12,6 @@
 #include "str_to_int.h"
 
 
-double
-_Py_dg_strtod_modified(
-        const Py_UCS4 *s00, Py_UCS4 **se, int *error,
-        Py_UCS4 decimal, Py_UCS4 sci, bool skip_trailing);
-
-
 /*
  * Coercion to boolean is done via integer right now.
  */
@@ -36,34 +30,96 @@ to_bool(PyArray_Descr *NPY_UNUSED(descr),
 
 
 /*
+ * In order to not pack a whole copy of a floating point parser, we copy the
+ * result into ascii and call the Python one.  Float parsing isn't super quick
+ * so this is not terrible, but avoiding it would speed up things.
+ *
+ * Also note that parsing the first float of a complex will copy the whole
+ * string to ascii rather than just the first part.
+ * TODO: A tweak of the break might be a simple mitigation there.
+ *
+ * @param str The UCS4 string to parse
+ * @param end Pointer to the end of the string
+ * @param skip_trailing_whitespace If false does not skip trailing whitespace
+ *        (used by the complex parser).
+ * @param result Output stored as double value.
+ */
+static NPY_INLINE int
+double_from_ucs4(
+        const Py_UCS4 *str, const Py_UCS4 *end,
+        bool skip_trailing_whitespace, double *result, const Py_UCS4 **p_end)
+{
+    /* skip leading whitespace */
+    while (Py_UNICODE_ISSPACE(*str)) {
+        str++;
+    }
+    if (str == end) {
+        return -1;  /* empty or only whitespace: not a floating point number */
+    }
+
+    /* We convert to ASCII for the Python parser, use stack if small: */
+    char stack_buf[128];
+    char *heap_buf = NULL;
+    char *ascii = stack_buf;
+
+    size_t str_len = end - str;
+    if (str_len > 128) {
+        heap_buf = PyMem_MALLOC(str_len);
+        ascii = heap_buf;
+    }
+    char *c = ascii;
+    for (; str < end; str++, c++) {
+        if (NPY_UNLIKELY(*str >= 128)) {
+            break;  /* the following cannot be a number anymore */
+        }
+        *c = (char)(*str);
+    }
+    *c = '\0';
+
+    char *end_parsed;
+    *result = PyOS_string_to_double(ascii, &end_parsed, NULL);
+    /* Rewind `end` to the first UCS4 character not parsed: */
+    end = end - (c - end_parsed);
+
+    PyMem_FREE(heap_buf);
+
+    if (*result == -1. && PyErr_Occurred()) {
+        return -1;
+    }
+
+    if (skip_trailing_whitespace) {
+        /* and then skip any remainig whitespace: */
+        while (Py_UNICODE_ISSPACE(*end)) {
+            end++;
+        }
+    }
+    *p_end = end;
+    return 0;
+}
+
+/*
  *  `item` must be the nul-terminated string that is to be
  *  converted to a double.
  *
  *  To be successful, to_double() must use *all* the characters
  *  in `item`.  E.g. "1.q25" will fail.  Leading and trailing 
  *  spaces are allowed.
- *
- *  `sci` is the scientific notation exponent character, usually
- *  either 'E' or 'D'.  Case is ignored.
- *
- *  `decimal` is the decimal point character, usually either
- *  '.' or ','.
- *
  */
 int
 to_float(PyArray_Descr *descr,
         const Py_UCS4 *str, const Py_UCS4 *end, char *dataptr,
-        parser_config *pconfig)
+        parser_config *NPY_UNUSED(pconfig))
 {
-    int error;
-    Py_UCS4 *p_end;
-
-    float val = (float)_Py_dg_strtod_modified(
-            str, &p_end, &error, pconfig->decimal, pconfig->sci, true);
-
-    if (error != 0 || p_end != end) {
+    double double_val;
+    const Py_UCS4 *p_end;
+    if (double_from_ucs4(str, end, true, &double_val, &p_end) < 0) {
         return -1;
     }
+    if (p_end != end) {
+        return -1;
+    }
+
+    float val = double_val;
     memcpy(dataptr, &val, sizeof(float));
     if (!PyArray_ISNBO(descr->byteorder)) {
         descr->f->copyswap(dataptr, dataptr, 1, NULL);
@@ -77,15 +133,15 @@ to_double(PyArray_Descr *descr,
         const Py_UCS4 *str, const Py_UCS4 *end, char *dataptr,
         parser_config *pconfig)
 {
-    int error;
-    Py_UCS4 *p_end;
-
-    double val = _Py_dg_strtod_modified(
-            str, &p_end, &error, pconfig->decimal, pconfig->sci, true);
-
-    if (error != 0 || p_end != end) {
+    double val;
+    const Py_UCS4 *p_end;
+    if (double_from_ucs4(str, end, true, &val, &p_end) < 0) {
         return -1;
     }
+    if (p_end != end) {
+        return -1;
+    }
+
     memcpy(dataptr, &val, sizeof(double));
     if (!PyArray_ISNBO(descr->byteorder)) {
         descr->f->copyswap(dataptr, dataptr, 1, NULL);
@@ -98,11 +154,9 @@ static bool
 to_complex_int(
         const Py_UCS4 *item, const Py_UCS4 *token_end,
         double *p_real, double *p_imag,
-        Py_UCS4 sci, Py_UCS4 decimal, Py_UCS4 imaginary_unit,
-        bool allow_parens)
+        Py_UCS4 imaginary_unit, bool allow_parens)
 {
-    Py_UCS4 *p_end;
-    int error;
+    const Py_UCS4 *p_end;
     bool unmatched_opening_paren = false;
 
     /* Remove whitespace before the possibly leading '(' */
@@ -113,11 +167,13 @@ to_complex_int(
         unmatched_opening_paren = true;
         ++item;
     }
-    *p_real = _Py_dg_strtod_modified(item, &p_end, &error, decimal, sci, false);
+    if (double_from_ucs4(item, token_end, false, p_real, &p_end) < 0) {
+        return false;
+    }
     if (p_end == token_end) {
         // No imaginary part in the string (e.g. "3.5")
         *p_imag = 0.0;
-        return (error == 0) && (!unmatched_opening_paren);
+        return !unmatched_opening_paren;
     }
     if (*p_end == imaginary_unit) {
         // Pure imaginary part only (e.g "1.5j")
@@ -138,9 +194,10 @@ to_complex_int(
         if (*p_end == '+') {
             ++p_end;
         }
-
-        *p_imag = _Py_dg_strtod_modified(p_end, &p_end, &error, decimal, sci, false);
-        if (error || (*p_end != imaginary_unit)) {
+        if (double_from_ucs4(p_end, token_end, false, p_imag, &p_end) < 0) {
+            return false;
+        }
+        if (*p_end != imaginary_unit) {
             return false;
         }
         ++p_end;
@@ -166,7 +223,6 @@ to_cfloat(PyArray_Descr *descr,
 
     bool success = to_complex_int(
             str, end, &real, &imag,
-            pconfig->sci, pconfig->decimal,
             pconfig->imaginary_unit, true);
 
     if (!success) {
@@ -191,7 +247,6 @@ to_cdouble(PyArray_Descr *descr,
 
     bool success = to_complex_int(
             str, end, &real, &imag,
-            pconfig->sci, pconfig->decimal,
             pconfig->imaginary_unit, true);
 
     if (!success) {

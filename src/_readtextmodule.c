@@ -104,8 +104,7 @@ static PyObject *
 _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     static char *kwlist[] = {"file", "delimiter", "comment", "quote",
-                             "decimal", "sci", "imaginary_unit",
-                             "usecols", "skiprows",
+                             "imaginary_unit", "usecols", "skiprows",
                              "max_rows", "converters", "dtype",
                              "encoding", "filelike",
                              "byte_converters", "c_byte_converters",
@@ -124,8 +123,6 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
         .delimiter = ',',
         .comment = '#',
         .quote = '"',
-        .decimal = '.',
-        .sci = 'E',
         .imaginary_unit = 'j',
         .allow_float_for_int = true,
         .allow_embedded_newline = true,
@@ -140,13 +137,11 @@ _readtext_from_file_object(PyObject *self, PyObject *args, PyObject *kwargs)
     PyObject *arr = NULL;
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwargs, "O|$O&O&O&O&O&O&OnnOOzppp", kwlist,
+            args, kwargs, "O|$O&O&O&O&OnnOOzppp", kwlist,
             &file,
             &parse_control_character, &pc.delimiter,
             &parse_control_character, &pc.comment,
             &parse_control_character, &pc.quote,
-            &parse_control_character, &pc.decimal,
-            &parse_control_character, &pc.sci,
             &parse_control_character, &pc.imaginary_unit,
             &usecols, &skiprows, &max_rows, &converters,
             &dtype, &encoding, &filelike,

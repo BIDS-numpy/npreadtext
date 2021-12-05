@@ -51,19 +51,6 @@ typedef struct {
     bool allow_embedded_newline;
 
     /*
-     *  The decimal point character.
-     *  Most commonly '.', but ',' is sometimes used.
-     */
-    Py_UCS4 decimal;
-
-    /*
-     *  The character used to indicate the exponent in scientific notation.
-     *  Typically 'E' or 'e', but 'D' (or 'd') are sometimes used (mainly in
-     *  Fortran code).  When parsing, the case is ignored.
-     */
-    Py_UCS4 sci;
-
-    /*
      *  The imaginary unit character. Default is `j`.
      */
     Py_UCS4 imaginary_unit;
