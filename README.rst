@@ -1,3 +1,9 @@
+**NOTE:  This reader is now included in NumPy and is used for `np.loadtxt`.
+The code in this repository is not up to date and the NumPy version should
+be used.  There are known bugs or subtle differences only fixed in NumPy.**
+
+
+
 npreadtext
 ==========
 
